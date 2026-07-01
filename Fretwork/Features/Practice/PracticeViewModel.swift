@@ -311,11 +311,10 @@ final class PracticeViewModel {
         // Start at a comfortable guitar position: root at octave 3.
         let rootNote = Note(pitchClass: selectedRoot, octave: 3)
         let ascending = selectedScale.notes(rootedAt: rootNote)
-        // Add the octave note at the top
         let topNote = rootNote.transposed(by: .perfectOctave)
-        var descending = ascending.reversed().dropFirst()
-
-        scaleSequence = ascending + [topNote] + Array(descending)
+        // Up through every degree, the octave at the top, then back down
+        // mirroring every degree (the octave itself is not repeated).
+        scaleSequence = ascending + [topNote] + ascending.reversed()
     }
 
     private func evaluateScaleBeat() {
