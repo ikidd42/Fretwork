@@ -91,45 +91,29 @@ final class FlashCardsViewModel {
     }
 
     private func scaleDegreeHint(card: FlashCard) -> HintData? {
-        // Parse root and scale from the deck context.
-        // The card was generated with a specific root+scale, so we can
-        // recover it by finding which scale deck this card belongs to.
-        guard let deck = selectedDeck else { return nil }
-        let scaleID = deck.id.replacingOccurrences(of: "scale-degree-", with: "")
-        guard let scale = Scale.catalog.first(where: { $0.id == scaleID }) else { return nil }
+        guard let root = card.root,
+              let scale = card.scale,
+              let target = card.expectedPitchClass else { return nil }
 
-        // Find the root from the prompt — it's the pitch class whose scale
-        // contains the expected answer at the right degree.
-        // Simpler: try all roots and find the one that produces this card's expected sequence.
-        let target = card.expectedSequence
-        for root in PitchClass.allCases {
-            let pcs = scale.pitchClasses(in: root)
-            if let pc = target.first, pcs.contains(pc) {
-                let degrees = DeckGenerator.scaleDegreeLabels(for: scale)
-                var degreeMap: [PitchClass: String] = [:]
-                for (i, p) in pcs.enumerated() {
-                    degreeMap[p] = degrees[i]
-                }
-                // Check the prompt contains this root's name
-                if card.prompt.contains(root.sharpName + " ") || card.prompt.contains(root.flatName + " ") {
-                    return HintData(
-                        scalePitchClasses: Set(pcs),
-                        targetPitchClasses: Set(target),
-                        root: root,
-                        degreeMap: degreeMap,
-                        label: "\(root.sharpName) \(scale.name)"
-                    )
-                }
-            }
+        let pcs = scale.pitchClasses(in: root)
+        let degrees = DeckGenerator.scaleDegreeLabels(for: scale)
+        var degreeMap: [PitchClass: String] = [:]
+        for (i, pc) in pcs.enumerated() {
+            degreeMap[pc] = degrees[i]
         }
-        return nil
+        return HintData(
+            scalePitchClasses: Set(pcs),
+            targetPitchClasses: [target],
+            root: root,
+            degreeMap: degreeMap,
+            label: "\(root.sharpName) \(scale.name)"
+        )
     }
 
     private func scaleSequenceHint(card: FlashCard) -> HintData? {
         // The sequence contains all the scale's pitch classes.
         let pcs = Set(card.expectedSequence)
-        // First note of an ascending sequence (or last of descending) is the root.
-        let root = card.expectedSequence.first ?? .c
+        let root = card.root ?? card.expectedSequence.first ?? .c
         return HintData(
             scalePitchClasses: pcs,
             targetPitchClasses: pcs,
@@ -152,16 +136,7 @@ final class FlashCardsViewModel {
 
     private func intervalHint(card: FlashCard) -> HintData? {
         guard let target = card.expectedPitchClass else { return nil }
-        // Extract root from prompt: "Play a ... above X"
-        var root: PitchClass?
-        for pc in PitchClass.allCases {
-            if card.prompt.hasSuffix("above \(pc.sharpName)") ||
-               card.prompt.hasSuffix("above \(pc.flatName)") {
-                root = pc
-                break
-            }
-        }
-        let rootPC = root ?? .c
+        let rootPC = card.root ?? .c
         return HintData(
             scalePitchClasses: Set([rootPC, target]),
             targetPitchClasses: Set([target]),
@@ -668,9 +643,17 @@ final class FlashCardsViewModel {
 
     private func scheduleAdvance(delay: Double = 1.0) {
         advanceTask?.cancel()
-        // Don't advance immediately — wait for the note to stop ringing
-        // so it doesn't bleed into the next card.
+        // Prefer advancing once the note stops ringing so it doesn't bleed
+        // into the next card — but cap the wait. If the player keeps making
+        // sound (noodling after a wrong answer), advance after `delay` anyway.
         waitingForSilence = true
+        advanceTask = Task {
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled, waitingForSilence else { return }
+            waitingForSilence = false
+            silenceStartTime = nil
+            nextCard()
+        }
     }
 
     // MARK: - Chord ingestion (for chordID cards)

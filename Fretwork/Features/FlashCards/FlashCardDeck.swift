@@ -14,17 +14,24 @@ struct FlashCard: Identifiable, Hashable, Sendable {
     let expectedSequence: [PitchClass]
     /// For chord ID cards: the expected chord (root + quality).
     let expectedChord: Chord?
+    /// Root pitch class this card was generated from, when applicable (used by hints).
+    let root: PitchClass?
+    /// Scale this card was generated from, when applicable (used by hints).
+    let scale: Scale?
 
     /// Convenience for single-answer cards.
     var expectedPitchClass: PitchClass? { expectedSequence.first }
 
     /// Standard init for pitch-based cards.
-    init(type: CardType, prompt: String, answerDescription: String, expectedSequence: [PitchClass]) {
+    init(type: CardType, prompt: String, answerDescription: String,
+         expectedSequence: [PitchClass], root: PitchClass? = nil, scale: Scale? = nil) {
         self.type = type
         self.prompt = prompt
         self.answerDescription = answerDescription
         self.expectedSequence = expectedSequence
         self.expectedChord = nil
+        self.root = root
+        self.scale = scale
     }
 
     /// Init for chord ID cards.
@@ -34,6 +41,8 @@ struct FlashCard: Identifiable, Hashable, Sendable {
         self.answerDescription = answerDescription
         self.expectedSequence = expectedChord.pitchClasses
         self.expectedChord = expectedChord
+        self.root = expectedChord.root
+        self.scale = nil
     }
 }
 
@@ -122,7 +131,9 @@ enum DeckGenerator {
                         type: .scaleDegree,
                         prompt: "Play the \(degrees[i]) of \(root.sharpName) \(scale.name)",
                         answerDescription: pc.sharpName,
-                        expectedSequence: [pc]
+                        expectedSequence: [pc],
+                        root: root,
+                        scale: scale
                     )
                 }
             }
@@ -151,7 +162,9 @@ enum DeckGenerator {
                     type: .scaleSequence,
                     prompt: "Play \(root.sharpName) \(scale.name) ascending (2 octaves)",
                     answerDescription: ascending.map(\.sharpName).joined(separator: " "),
-                    expectedSequence: ascending
+                    expectedSequence: ascending,
+                    root: root,
+                    scale: scale
                 ))
                 // Descending 2 octaves
                 let descending = scaleSequence(root: root, scale: scale, octaves: 2, descending: true)
@@ -159,7 +172,9 @@ enum DeckGenerator {
                     type: .scaleSequence,
                     prompt: "Play \(root.sharpName) \(scale.name) descending (2 octaves)",
                     answerDescription: descending.map(\.sharpName).joined(separator: " "),
-                    expectedSequence: descending
+                    expectedSequence: descending,
+                    root: root,
+                    scale: scale
                 ))
             }
         }
@@ -244,7 +259,8 @@ enum DeckGenerator {
                     type: .interval,
                     prompt: "Play a \(name) above \(root.sharpName)",
                     answerDescription: target.sharpName,
-                    expectedSequence: [target]
+                    expectedSequence: [target],
+                    root: root
                 ))
             }
         }
