@@ -15,7 +15,7 @@ struct FlashCardsView: View {
         Group {
             if viewModel.isSessionActive {
                 sessionView
-            } else if viewModel.selectedDeck != nil && viewModel.totalAttempts > 0 {
+            } else if viewModel.selectedDeck != nil {
                 resultsView
             } else {
                 deckPickerView
