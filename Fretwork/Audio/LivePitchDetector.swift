@@ -94,6 +94,16 @@ final class LivePitchDetector: PitchDetector, ChordDetector, AudioDeviceControll
         pbEng.connect(player, to: pbEng.mainMixerNode, format: format)
         pbEng.mainMixerNode.outputVolume = Float(_isMonitoringEnabled ? _monitorGain : 0)
 
+        // Route playback to the user's chosen output device. Without this the
+        // engine silently stays on the system default output.
+        if let outUID = outputUID, let outDevID = CoreAudioBridge.audioDeviceID(forUID: outUID) {
+            do {
+                try CoreAudioBridge.setOutputDevice(outDevID, on: pbEng)
+            } catch {
+                Self.logger.warning("Could not route playback to selected output: \(error.localizedDescription)")
+            }
+        }
+
         do {
             try pbEng.start()
             player.play()
