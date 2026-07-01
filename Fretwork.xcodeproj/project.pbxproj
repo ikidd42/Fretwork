@@ -10,14 +10,30 @@
 		3C46B0C52FA5674400F4C1EE /* AudioKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3C46B0C42FA5674400F4C1EE /* AudioKit */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		445DF59D97FF41488A6E25CD /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3C46B07C2FA562EE00F4C1EE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3C46B0832FA562EE00F4C1EE;
+			remoteInfo = Fretwork;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		3C46B0842FA562EE00F4C1EE /* Fretwork.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Fretwork.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C907E34519344B259F65D6EF /* FretworkTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FretworkTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		3C46B0862FA562EE00F4C1EE /* Fretwork */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Fretwork;
+			sourceTree = "<group>";
+		};
+		5F2241FA50C640C0AEBBB656 /* FretworkTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = FretworkTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -31,6 +47,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		50E6AFE633CA47C2A6099FA0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -38,6 +61,7 @@
 			isa = PBXGroup;
 			children = (
 				3C46B0862FA562EE00F4C1EE /* Fretwork */,
+				5F2241FA50C640C0AEBBB656 /* FretworkTests */,
 				3C46B0852FA562EE00F4C1EE /* Products */,
 			);
 			sourceTree = "<group>";
@@ -46,6 +70,7 @@
 			isa = PBXGroup;
 			children = (
 				3C46B0842FA562EE00F4C1EE /* Fretwork.app */,
+				C907E34519344B259F65D6EF /* FretworkTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -76,6 +101,27 @@
 			productReference = 3C46B0842FA562EE00F4C1EE /* Fretwork.app */;
 			productType = "com.apple.product-type.application";
 		};
+		6103C7468F1B44E0AC50BF13 /* FretworkTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 70C3FCEF196E49B585FCD0D7 /* Build configuration list for PBXNativeTarget "FretworkTests" */;
+			buildPhases = (
+				5DAF5DA5575347C292A3583C /* Sources */,
+				50E6AFE633CA47C2A6099FA0 /* Frameworks */,
+				A9FB3AB634784566A40CFEE2 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				2256EEE3B8824C7FBBC43460 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				5F2241FA50C640C0AEBBB656 /* FretworkTests */,
+			);
+			name = FretworkTests;
+			productName = FretworkTests;
+			productReference = C907E34519344B259F65D6EF /* FretworkTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -88,6 +134,10 @@
 				TargetAttributes = {
 					3C46B0832FA562EE00F4C1EE = {
 						CreatedOnToolsVersion = 26.4;
+					};
+					6103C7468F1B44E0AC50BF13 = {
+						CreatedOnToolsVersion = 26.4;
+						TestTargetID = 3C46B0832FA562EE00F4C1EE;
 					};
 				};
 			};
@@ -109,12 +159,20 @@
 			projectRoot = "";
 			targets = (
 				3C46B0832FA562EE00F4C1EE /* Fretwork */,
+				6103C7468F1B44E0AC50BF13 /* FretworkTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		3C46B0822FA562EE00F4C1EE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A9FB3AB634784566A40CFEE2 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -131,9 +189,45 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5DAF5DA5575347C292A3583C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		2256EEE3B8824C7FBBC43460 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3C46B0832FA562EE00F4C1EE /* Fretwork */;
+			targetProxy = 445DF59D97FF41488A6E25CD /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		1C27085F1C7644A6A6DF7184 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = NU85WN366H;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = fretwork.FretworkTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Fretwork.app/Contents/MacOS/Fretwork";
+			};
+			name = Release;
+		};
 		3C46B08D2FA562F000F4C1EE /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -346,6 +440,27 @@
 			};
 			name = Release;
 		};
+		8D9157B128C64A4A92913952 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = NU85WN366H;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = fretwork.FretworkTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Fretwork.app/Contents/MacOS/Fretwork";
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -363,6 +478,15 @@
 			buildConfigurations = (
 				3C46B0902FA562F000F4C1EE /* Debug */,
 				3C46B0912FA562F000F4C1EE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		70C3FCEF196E49B585FCD0D7 /* Build configuration list for PBXNativeTarget "FretworkTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8D9157B128C64A4A92913952 /* Debug */,
+				1C27085F1C7644A6A6DF7184 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

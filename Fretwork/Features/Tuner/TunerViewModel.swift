@@ -42,7 +42,7 @@ final class TunerViewModel {
 
     /// Below this amplitude (detector's normalized scale) we treat the input as silence.
     /// Lower = more sensitive but more false positives from string noise / room hum.
-    var amplitudeThreshold: Double = 0.05
+    var amplitudeThreshold: Double = DetectedPitch.defaultAmplitudeThreshold
 
     /// Exponential smoothing factor in [0, 1). Higher = smoother / slower to react.
     var smoothing: Double = 0.6

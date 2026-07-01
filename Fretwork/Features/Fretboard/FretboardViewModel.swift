@@ -76,7 +76,7 @@ final class FretboardViewModel {
 
     // MARK: - Tunables
 
-    var amplitudeThreshold: Double = 0.05
+    var amplitudeThreshold: Double = DetectedPitch.defaultAmplitudeThreshold
     var smoothing: Double = 0.6
     var minFrequency: Double = 30
     var maxFrequency: Double = 4000

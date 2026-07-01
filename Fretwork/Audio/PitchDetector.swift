@@ -10,6 +10,21 @@ struct DetectedPitch: Sendable, Hashable {
     let timestamp: TimeInterval
 }
 
+extension DetectedPitch {
+    /// Shared default for the `amplitudeThreshold` gate used by every
+    /// pitch-consuming ViewModel (Tuner, Fretboard, FlashCards, Practice).
+    /// Below this RMS, a reading is treated as silence and dropped.
+    ///
+    /// Matches `ChordAnalyzer.amplitudeThreshold` (0.02) — the previous
+    /// 0.05 default was more than double that for the same underlying RMS
+    /// signal, and was cutting out real plucks on thinner strings (D, G,
+    /// B, high E) whose energy is comparable to low E/A. See
+    /// `PitchAnalyzerTests` for the diagnostic that confirmed YIN itself
+    /// is accurate across the guitar range and RMS doesn't depend on
+    /// frequency — the fixed threshold was simply too high.
+    static let defaultAmplitudeThreshold: Double = 0.02
+}
+
 /// Abstraction over a real-time pitch source.
 ///
 /// The default implementation is `LivePitchDetector` (Core Audio HAL-backed);

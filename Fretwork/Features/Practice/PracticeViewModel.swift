@@ -136,7 +136,7 @@ final class PracticeViewModel {
     private(set) var detectedChord: Chord?
 
     private var smoothedFrequency: Double?
-    var amplitudeThreshold: Double = 0.05
+    var amplitudeThreshold: Double = DetectedPitch.defaultAmplitudeThreshold
     var smoothing: Double = 0.6
 
     // MARK: - Scoring
