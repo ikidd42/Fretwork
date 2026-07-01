@@ -23,10 +23,18 @@ import CoreAudio
 ///       playerNode → mainMixer(vol = monitorGain) → outputNode → device
 ///
 /// `nonisolated` because the IOProc fires on the device's IO thread.
+///
+/// Thread safety: shared mutable state is guarded by `lock`. The IOProc takes
+/// a brief snapshot under the lock at the top of each callback; control-plane
+/// methods (main thread) mutate under the same lock. The lock is never held
+/// across blocking Core Audio calls (`AudioDeviceStop`, engine start/stop).
 nonisolated
 final class LivePitchDetector: PitchDetector, ChordDetector, AudioDeviceController, @unchecked Sendable {
 
     private static let logger = Logger(subsystem: "com.fretwork.app", category: "audio")
+
+    /// Guards all mutable state shared with the IO thread.
+    private let lock = NSLock()
 
     // MARK: - HAL IOProc (input)
 
@@ -55,9 +63,21 @@ final class LivePitchDetector: PitchDetector, ChordDetector, AudioDeviceControll
 
     // MARK: - PitchDetector & ChordDetector
 
-    private(set) var isRunning: Bool = false
-    var onPitch: (@Sendable (DetectedPitch) -> Void)?
-    var onChord: (@Sendable (DetectedChord?) -> Void)?
+    private var _isRunning: Bool = false
+    private var _onPitch: (@Sendable (DetectedPitch) -> Void)?
+    private var _onChord: (@Sendable (DetectedChord?) -> Void)?
+
+    var isRunning: Bool { lock.withLock { _isRunning } }
+
+    var onPitch: (@Sendable (DetectedPitch) -> Void)? {
+        get { lock.withLock { _onPitch } }
+        set { lock.withLock { _onPitch = newValue } }
+    }
+
+    var onChord: (@Sendable (DetectedChord?) -> Void)? {
+        get { lock.withLock { _onChord } }
+        set { lock.withLock { _onChord = newValue } }
+    }
 
     func start() throws {
         guard !isRunning else { return }
@@ -84,7 +104,7 @@ final class LivePitchDetector: PitchDetector, ChordDetector, AudioDeviceControll
         // ── 3. Query input format ───────────────────────────────────────
         //   Build an AVAudioFormat from the device's stream description.
         let format = try Self.inputFormat(for: devID)
-        self.captureFormat = format
+        lock.withLock { self.captureFormat = format }
         Self.logger.debug("Capture format: \(format.channelCount)ch, \(format.sampleRate)Hz")
 
         // ── 4. Build playback engine ────────────────────────────────────
@@ -92,7 +112,7 @@ final class LivePitchDetector: PitchDetector, ChordDetector, AudioDeviceControll
         let player = AVAudioPlayerNode()
         pbEng.attach(player)
         pbEng.connect(player, to: pbEng.mainMixerNode, format: format)
-        pbEng.mainMixerNode.outputVolume = Float(_isMonitoringEnabled ? _monitorGain : 0)
+        pbEng.mainMixerNode.outputVolume = Float(lock.withLock { _isMonitoringEnabled ? _monitorGain : 0 })
 
         // Route playback to the user's chosen output device. Without this the
         // engine silently stays on the system default output.
@@ -110,8 +130,10 @@ final class LivePitchDetector: PitchDetector, ChordDetector, AudioDeviceControll
         } catch {
             throw PitchDetectorError.engineFailed(underlying: error)
         }
-        self.playbackEngine = pbEng
-        self.playerNode = player
+        lock.withLock {
+            self.playbackEngine = pbEng
+            self.playerNode = player
+        }
 
         // Pre-fill the player queue with a few silence buffers to cushion
         // against clock drift between the input and output devices.
@@ -154,31 +176,40 @@ final class LivePitchDetector: PitchDetector, ChordDetector, AudioDeviceControll
             ))
         }
 
-        isRunning = true
+        lock.withLock { _isRunning = true }
         Self.logger.info("IOProc started on device \(devID), HW buffer \(hwBuf) frames")
     }
 
     func stop() {
-        guard isRunning else { return }
-
-        if let procID = ioProcID {
-            AudioDeviceStop(inputDeviceID, procID)
-            AudioDeviceDestroyIOProcID(inputDeviceID, procID)
-        }
+        lock.lock()
+        guard _isRunning else { lock.unlock(); return }
+        _isRunning = false
+        let procID = ioProcID
+        let devID = inputDeviceID
+        let player = playerNode
+        let engine = playbackEngine
         ioProcID = nil
-
-        playerNode?.stop()
-        playbackEngine?.stop()
-        if let player = playerNode, player.engine != nil {
-            playbackEngine?.detach(player)
-        }
-        playbackEngine = nil
         playerNode = nil
-
+        playbackEngine = nil
         captureFormat = nil
+        lock.unlock()
+
+        // Blocking Core Audio calls happen outside the lock. Destroying the
+        // IOProc synchronizes with in-flight callbacks; any callback that
+        // already snapshotted state holds its own references safely.
+        if let procID {
+            AudioDeviceStop(devID, procID)
+            AudioDeviceDestroyIOProcID(devID, procID)
+        }
+
+        player?.stop()
+        engine?.stop()
+        if let player, player.engine != nil {
+            engine?.detach(player)
+        }
+
         pitchAnalyzer.reset()
         chordAnalyzer.reset()
-        isRunning = false
     }
 
     deinit {
@@ -212,10 +243,20 @@ final class LivePitchDetector: PitchDetector, ChordDetector, AudioDeviceControll
         let rawFrames = Int(firstBuf.mDataByteSize) / (chCount * MemoryLayout<Float>.stride)
         guard rawFrames <= maxFramesPerCallback else { return }
 
+        // Snapshot shared state once, briefly, under the lock. Everything
+        // below uses these locals so the control plane can mutate freely.
+        lock.lock()
+        let format = captureFormat
+        let player = playerNode
+        let monitoring = _isMonitoringEnabled
+        let pitchCallback = _onPitch
+        let chordCallback = _onChord
+        lock.unlock()
+
         // Allocate a fresh buffer for each callback. ARC releases it after
         // the playerNode finishes playback — no risk of overwriting a buffer
         // that's still being played. ~1 KB per allocation at 128 frames.
-        guard let format = captureFormat,
+        guard let format,
               let buffer = AVAudioPCMBuffer(pcmFormat: format,
                                             frameCapacity: AVAudioFrameCount(rawFrames)),
               let dstChannels = buffer.floatChannelData else { return }
@@ -256,11 +297,11 @@ final class LivePitchDetector: PitchDetector, ChordDetector, AudioDeviceControll
                 amplitude: result.amplitude,
                 timestamp: CACurrentMediaTime()
             )
-            onPitch?(reading)
+            pitchCallback?(reading)
         }
 
         // Chord analysis — runs on the same buffer.
-        if let onChord {
+        if let chordCallback {
             let sr = format.sampleRate
             if let result = chordAnalyzer.analyze(buffer, sampleRate: sr) {
                 let detected = DetectedChord(
@@ -268,14 +309,14 @@ final class LivePitchDetector: PitchDetector, ChordDetector, AudioDeviceControll
                     confidence: result.confidence,
                     timestamp: CACurrentMediaTime()
                 )
-                onChord(detected)
+                chordCallback(detected)
             } else {
-                onChord(nil)
+                chordCallback(nil)
             }
         }
 
         // Forward to playback for monitoring.
-        guard _isMonitoringEnabled, let player = playerNode else { return }
+        guard monitoring, let player else { return }
         player.scheduleBuffer(buffer, completionHandler: nil)
     }
 
@@ -375,14 +416,16 @@ final class LivePitchDetector: PitchDetector, ChordDetector, AudioDeviceControll
         if wasRunning { try start() }
     }
 
-    var isMonitoringEnabled: Bool { _isMonitoringEnabled }
-    var monitorGain: Double { _monitorGain }
+    var isMonitoringEnabled: Bool { lock.withLock { _isMonitoringEnabled } }
+    var monitorGain: Double { lock.withLock { _monitorGain } }
 
     func setMonitoring(enabled: Bool, gain: Double) {
+        lock.lock()
         _isMonitoringEnabled = enabled
         _monitorGain = max(0, min(2.0, gain))
-        if let pbEng = playbackEngine, isRunning {
-            pbEng.mainMixerNode.outputVolume = Float(_isMonitoringEnabled ? _monitorGain : 0)
-        }
+        let volume = Float(_isMonitoringEnabled ? _monitorGain : 0)
+        let engine = _isRunning ? playbackEngine : nil
+        lock.unlock()
+        engine?.mainMixerNode.outputVolume = volume
     }
 }
