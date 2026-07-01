@@ -23,8 +23,9 @@ struct Interval: Hashable, Sendable {
     static let perfectOctave  = Interval(semitones: 12)
 
     /// Short label for display in hints, e.g. "3", "b7", "5".
+    /// Negative intervals are folded into the octave below (e.g. -3 → "6").
     var shortName: String {
-        switch semitones % 12 {
+        switch ((semitones % 12) + 12) % 12 {
         case 0:  "R"
         case 1:  "b2"
         case 2:  "2"
