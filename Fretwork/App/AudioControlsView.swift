@@ -16,6 +16,10 @@ struct AudioControlsView: View {
             inputDeviceSection
             outputDeviceSection
 
+            if let error = settings.lastError {
+                Banner(text: error, tint: Theme.Color.outOfTune)
+            }
+
             Divider()
 
             monitoringSection

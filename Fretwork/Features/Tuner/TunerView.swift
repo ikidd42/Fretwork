@@ -124,23 +124,6 @@ private struct CentsIndicator: View {
     }
 }
 
-// MARK: - Banner
-
-private struct Banner: View {
-    let text: String
-    let tint: Color
-
-    var body: some View {
-        Text(text)
-            .font(Theme.Font.caption)
-            .foregroundStyle(Theme.Color.primaryText)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(12)
-            .background(tint.opacity(0.15))
-            .clipShape(RoundedRectangle(cornerRadius: Theme.Metrics.cornerRadius))
-    }
-}
-
 #Preview {
     TunerView(detector: MockPitchDetector())
         .frame(width: 720, height: 480)

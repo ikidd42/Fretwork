@@ -91,6 +91,10 @@ extension DrumPattern {
 ///
 /// Each drum is a combination of sine waves with rapid envelope decay.
 /// Surprisingly convincing for practice purposes.
+///
+/// `nonisolated` — pure functions of no shared state, called from
+/// `AudioMetronome`'s nonisolated control plane.
+nonisolated
 enum DrumSynthesizer {
 
     static let sampleRate: Double = 44100

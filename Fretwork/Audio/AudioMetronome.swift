@@ -103,9 +103,10 @@ final class AudioMetronome: @unchecked Sendable {
     private var playerNode: AVAudioPlayerNode?
 
     private let sampleRate: Double = 44100
-    private lazy var playbackFormat: AVAudioFormat = {
-        AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1)!
-    }()
+    // `let` (not `lazy var`) — a lazy stored property is mutable state, which
+    // `nonisolated` forbids and which would race between the control plane
+    // and the scheduling thread anyway.
+    private let playbackFormat = AVAudioFormat(standardFormatWithSampleRate: 44100, channels: 1)!
 
     // MARK: - Click buffers (precomputed)
 

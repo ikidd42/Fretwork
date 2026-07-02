@@ -72,7 +72,7 @@ final class TunerViewModel {
 
         detector.onPitch = { [weak self] reading in
             // Detector callbacks fire off the main thread; hop before touching state.
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 self?.ingest(reading)
             }
         }

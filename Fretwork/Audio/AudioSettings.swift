@@ -18,6 +18,11 @@ final class AudioSettings {
     private(set) var isMonitoringEnabled: Bool
     private(set) var monitorGain: Double
 
+    /// Human-readable description of the most recent device-switch failure,
+    /// or `nil` when the last operation succeeded. Views surface it as a
+    /// banner next to the device pickers.
+    private(set) var lastError: String?
+
     // MARK: - Dependencies
 
     private weak var controller: (any AudioDeviceController)?
@@ -60,8 +65,9 @@ final class AudioSettings {
         defaults.set(id, forKey: Keys.inputDeviceID)
         do {
             try controller?.setInputDevice(id: id)
+            lastError = nil
         } catch {
-            // TODO: surface through a banner. Logged silently for now.
+            lastError = "Could not switch input device: \(error.localizedDescription)"
         }
     }
 
@@ -70,8 +76,9 @@ final class AudioSettings {
         defaults.set(id, forKey: Keys.outputDeviceID)
         do {
             try controller?.setOutputDevice(id: id)
+            lastError = nil
         } catch {
-            // TODO: surface through a banner. Logged silently for now.
+            lastError = "Could not switch output device: \(error.localizedDescription)"
         }
     }
 

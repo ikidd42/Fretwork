@@ -278,13 +278,13 @@ final class FlashCardsViewModel {
         guard permission == .granted else { return }
 
         detector.onPitch = { [weak self] reading in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 self?.ingest(reading)
             }
         }
 
         chordDetector?.onChord = { [weak self] detected in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 self?.ingestChord(detected)
             }
         }
