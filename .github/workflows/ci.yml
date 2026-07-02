@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    name: Build & Test (macOS)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Build
+        run: |
+          xcodebuild build \
+            -project Fretwork.xcodeproj \
+            -scheme Fretwork \
+            -destination 'platform=macOS' \
+            CODE_SIGN_IDENTITY=- \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM= \
+            ENABLE_HARDENED_RUNTIME=NO
+
+      - name: Test
+        run: |
+          xcodebuild test \
+            -project Fretwork.xcodeproj \
+            -scheme Fretwork \
+            -destination 'platform=macOS' \
+            CODE_SIGN_IDENTITY=- \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM= \
+            ENABLE_HARDENED_RUNTIME=NO
