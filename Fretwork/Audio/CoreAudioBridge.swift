@@ -2,10 +2,11 @@ import Foundation
 import CoreAudio
 import AVFoundation
 
-/// Direct Core Audio HAL helpers for the bits AudioKit doesn't expose:
-/// device UIDs (stable across reboots, unlike numeric `AudioDeviceID`s),
-/// input channel counts, setting the input device on an `AVAudioEngine`,
-/// and reading the system default input device.
+/// Direct Core Audio HAL helpers: device enumeration and names, device UIDs
+/// (stable across reboots, unlike numeric `AudioDeviceID`s), channel counts,
+/// setting the input/output device on an `AVAudioEngine`, buffer sizes, and
+/// reading the system default devices. Everything the app needs from the
+/// HAL — no audio framework dependencies.
 ///
 /// All functions are pure — no shared state. `nonisolated` because they're
 /// callable from anywhere.
@@ -91,6 +92,45 @@ enum CoreAudioBridge {
         let abl = bufferList.assumingMemoryBound(to: AudioBufferList.self)
         let buffers = UnsafeMutableAudioBufferListPointer(abl)
         return buffers.reduce(0) { $0 + Int($1.mNumberChannels) }
+    }
+
+    // MARK: - Device enumeration
+
+    /// Every audio device the HAL currently knows about (inputs, outputs,
+    /// and aggregates). Filter by channel count for direction.
+    static var allDeviceIDs: [AudioDeviceID] {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var size: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(
+            AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size
+        ) == noErr, size > 0 else { return [] }
+
+        var deviceIDs = [AudioDeviceID](
+            repeating: 0,
+            count: Int(size) / MemoryLayout<AudioDeviceID>.size
+        )
+        guard AudioObjectGetPropertyData(
+            AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &deviceIDs
+        ) == noErr else { return [] }
+        return deviceIDs
+    }
+
+    /// Human-readable device name (e.g. `"MacBook Pro Microphone"`).
+    static func deviceName(for deviceID: AudioDeviceID) -> String? {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyDeviceNameCFString,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var name: Unmanaged<CFString>?
+        var size = UInt32(MemoryLayout<CFString?>.size)
+        let status = AudioObjectGetPropertyData(deviceID, &address, 0, nil, &size, &name)
+        guard status == noErr, let unwrapped = name else { return nil }
+        return unwrapped.takeRetainedValue() as String
     }
 
     // MARK: - System defaults

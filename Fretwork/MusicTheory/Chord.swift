@@ -1,6 +1,9 @@
 import Foundation
 
 /// A chord type independent of root — defined by its interval stack.
+///
+/// `nonisolated` — pure data compared on the audio IO thread by `ChordAnalyzer`.
+nonisolated
 struct ChordQuality: Hashable, Sendable, Identifiable {
     let id: String
     /// Human-readable name, e.g. `"Minor 7"`.
@@ -18,7 +21,7 @@ struct ChordQuality: Hashable, Sendable, Identifiable {
     }
 }
 
-extension ChordQuality {
+nonisolated extension ChordQuality {
     // Triads
     static let major       = ChordQuality(id: "maj",  name: "Major",       symbol: "",     intervals: [0, 4, 7])
     static let minor       = ChordQuality(id: "min",  name: "Minor",       symbol: "m",    intervals: [0, 3, 7])
@@ -42,6 +45,9 @@ extension ChordQuality {
 }
 
 /// A specific chord — root pitch class + quality.
+///
+/// `nonisolated` — pure data compared on the audio IO thread by `ChordAnalyzer`.
+nonisolated
 struct Chord: Hashable, Sendable, Identifiable {
     let root: PitchClass
     let quality: ChordQuality

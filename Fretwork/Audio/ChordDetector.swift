@@ -1,6 +1,7 @@
 import Foundation
 
 /// A detected chord from the audio input.
+nonisolated
 struct DetectedChord: Sendable, Hashable {
     let chord: Chord
     /// Confidence score in [0, 1] — higher means stronger match.
@@ -12,6 +13,7 @@ struct DetectedChord: Sendable, Hashable {
 ///
 /// Parallel to `PitchDetector` but for polyphonic input. The default
 /// implementation is `LiveChordDetector` (FFT chromagram + template matching).
+nonisolated
 protocol ChordDetector: AnyObject, Sendable {
     var isRunning: Bool { get }
 

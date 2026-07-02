@@ -1,6 +1,5 @@
 import Foundation
 import QuartzCore
-import AudioKit
 import os
 import AVFoundation
 import CoreAudio
@@ -373,23 +372,22 @@ final class LivePitchDetector: PitchDetector, ChordDetector, AudioDeviceControll
     // MARK: - AudioDeviceController
 
     var availableInputDevices: [AudioDevice] {
-        let devices = AudioKit.AudioEngine.inputDevices ?? []
-        return devices.compactMap { device -> AudioDevice? in
-            guard let uid = CoreAudioBridge.deviceUID(for: device.deviceID) else { return nil }
-            let channels = CoreAudioBridge.inputChannelCount(for: device.deviceID)
-            guard channels > 0 else { return nil }
-            return AudioDevice(id: uid, name: device.name, channelCount: channels)
-        }
-        .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        Self.enumerateDevices(channelCount: CoreAudioBridge.inputChannelCount(for:))
     }
 
     var availableOutputDevices: [AudioDevice] {
-        let devices = AudioKit.AudioEngine.outputDevices ?? []
-        return devices.compactMap { device -> AudioDevice? in
-            guard let uid = CoreAudioBridge.deviceUID(for: device.deviceID) else { return nil }
-            let channels = CoreAudioBridge.outputChannelCount(for: device.deviceID)
-            guard channels > 0 else { return nil }
-            return AudioDevice(id: uid, name: device.name, channelCount: channels)
+        Self.enumerateDevices(channelCount: CoreAudioBridge.outputChannelCount(for:))
+    }
+
+    /// All HAL devices with at least one channel in the requested direction,
+    /// sorted by name.
+    private static func enumerateDevices(channelCount: (AudioDeviceID) -> Int) -> [AudioDevice] {
+        CoreAudioBridge.allDeviceIDs.compactMap { devID -> AudioDevice? in
+            let channels = channelCount(devID)
+            guard channels > 0,
+                  let uid = CoreAudioBridge.deviceUID(for: devID),
+                  let name = CoreAudioBridge.deviceName(for: devID) else { return nil }
+            return AudioDevice(id: uid, name: name, channelCount: channels)
         }
         .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }

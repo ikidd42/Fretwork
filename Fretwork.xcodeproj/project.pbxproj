@@ -6,10 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		3C46B0C52FA5674400F4C1EE /* AudioKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3C46B0C42FA5674400F4C1EE /* AudioKit */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
 		445DF59D97FF41488A6E25CD /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -43,7 +39,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3C46B0C52FA5674400F4C1EE /* AudioKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -94,9 +89,6 @@
 				3C46B0862FA562EE00F4C1EE /* Fretwork */,
 			);
 			name = Fretwork;
-			packageProductDependencies = (
-				3C46B0C42FA5674400F4C1EE /* AudioKit */,
-			);
 			productName = Fretwork;
 			productReference = 3C46B0842FA562EE00F4C1EE /* Fretwork.app */;
 			productType = "com.apple.product-type.application";
@@ -150,9 +142,6 @@
 			);
 			mainGroup = 3C46B07B2FA562EE00F4C1EE;
 			minimizedProjectReferenceProxies = 1;
-			packageReferences = (
-				3C46B0C32FA5674400F4C1EE /* XCRemoteSwiftPackageReference "AudioKit" */,
-			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 3C46B0852FA562EE00F4C1EE /* Products */;
 			projectDirPath = "";
@@ -493,24 +482,6 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		3C46B0C32FA5674400F4C1EE /* XCRemoteSwiftPackageReference "AudioKit" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/AudioKit/AudioKit";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 5.7.2;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		3C46B0C42FA5674400F4C1EE /* AudioKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 3C46B0C32FA5674400F4C1EE /* XCRemoteSwiftPackageReference "AudioKit" */;
-			productName = AudioKit;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 3C46B07C2FA562EE00F4C1EE /* Project object */;
 }

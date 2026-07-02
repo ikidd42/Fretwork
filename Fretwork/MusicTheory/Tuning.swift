@@ -3,6 +3,7 @@ import Foundation
 /// A guitar tuning — the open-string pitches from low (string 6) to high (string 1).
 ///
 /// `openStrings[0]` is the lowest string. Standard tuning is E2 A2 D3 G3 B3 E4.
+nonisolated
 struct Tuning: Hashable, Sendable, Identifiable {
     let id: String
     let name: String
@@ -17,7 +18,7 @@ struct Tuning: Hashable, Sendable, Identifiable {
     var stringCount: Int { openStrings.count }
 }
 
-extension Tuning {
+nonisolated extension Tuning {
     static let standard = Tuning(
         id: "standard",
         name: "Standard (EADGBE)",

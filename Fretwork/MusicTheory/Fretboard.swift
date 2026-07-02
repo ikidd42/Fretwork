@@ -4,6 +4,7 @@ import Foundation
 /// `(string, fret)` location for a given tuning. Knows nothing about drawing.
 ///
 /// `string` indexes are 0-based from the lowest pitch up — string 0 is low E in standard.
+nonisolated
 struct Fretboard: Hashable, Sendable {
     let tuning: Tuning
     let fretCount: Int

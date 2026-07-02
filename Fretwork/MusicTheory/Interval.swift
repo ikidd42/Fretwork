@@ -1,6 +1,7 @@
 import Foundation
 
 /// A musical interval expressed in semitones.
+nonisolated
 struct Interval: Hashable, Sendable {
     let semitones: Int
 
@@ -43,7 +44,7 @@ struct Interval: Hashable, Sendable {
     }
 }
 
-extension Note {
+nonisolated extension Note {
     /// Note transposed by an interval. Octave handled automatically.
     func transposed(by interval: Interval) -> Note {
         let newMidi = midiNumber + interval.semitones

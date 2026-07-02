@@ -4,6 +4,7 @@ import Foundation
 ///
 /// `amplitude` is on a normalized [0, 1]-ish scale. `frequency` may be
 /// 0 or NaN when the detector has no signal — consumers must guard.
+nonisolated
 struct DetectedPitch: Sendable, Hashable {
     let frequency: Double
     let amplitude: Double
@@ -29,6 +30,7 @@ extension DetectedPitch {
 ///
 /// The default implementation is `LivePitchDetector` (Core Audio HAL-backed);
 /// `MockPitchDetector` provides a scripted stream for previews and tests.
+nonisolated
 protocol PitchDetector: AnyObject, Sendable {
     var isRunning: Bool { get }
 

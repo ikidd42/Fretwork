@@ -3,6 +3,7 @@ import Foundation
 /// A specific pitch — pitch class plus octave (scientific pitch notation).
 ///
 /// `Note(pitchClass: .a, octave: 4)` is concert A (440 Hz).
+nonisolated
 struct Note: Hashable, Sendable {
     let pitchClass: PitchClass
     let octave: Int
@@ -39,7 +40,7 @@ struct Note: Hashable, Sendable {
     }
 }
 
-extension Note: Comparable {
+nonisolated extension Note: Comparable {
     static func < (lhs: Note, rhs: Note) -> Bool {
         lhs.midiNumber < rhs.midiNumber
     }

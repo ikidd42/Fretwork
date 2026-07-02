@@ -9,6 +9,9 @@ import Foundation
 ///
 /// `channelCount` is the count for the direction this instance represents:
 /// input channels for an input device, output channels for an output device.
+///
+/// `nonisolated` — pure data constructed on the audio control plane.
+nonisolated
 struct AudioDevice: Hashable, Identifiable, Sendable {
     let id: String
     let name: String

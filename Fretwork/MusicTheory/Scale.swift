@@ -5,6 +5,7 @@ import Foundation
 /// Modes are ordinary scales — there's nothing magical distinguishing
 /// a mode from a "scale" beyond a label. `Dorian` is just a scale that
 /// happens to share notes with the major scale a step below its root.
+nonisolated
 struct Scale: Hashable, Sendable, Identifiable {
     let id: String
     let name: String
@@ -30,7 +31,7 @@ struct Scale: Hashable, Sendable, Identifiable {
 
 // MARK: - Catalog
 
-extension Scale {
+nonisolated extension Scale {
     // Diatonic
     static let major          = Scale(id: "major",          name: "Major",            intervals: [0, 2, 4, 5, 7, 9, 11])
     static let naturalMinor   = Scale(id: "natural-minor",  name: "Natural Minor",    intervals: [0, 2, 3, 5, 7, 8, 10])

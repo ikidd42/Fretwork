@@ -4,6 +4,7 @@ import Foundation
 ///
 /// `rawValue` is the number of semitones above C, so equality and arithmetic
 /// modulo 12 work directly: `PitchClass(rawValue: 7) == .g`.
+nonisolated
 enum PitchClass: Int, CaseIterable, Hashable, Sendable {
     case c = 0
     case cSharp
@@ -65,6 +66,7 @@ enum PitchClass: Int, CaseIterable, Hashable, Sendable {
     }
 }
 
+nonisolated
 enum Accidental: Hashable, Sendable {
     case sharp
     case flat

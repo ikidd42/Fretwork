@@ -7,6 +7,7 @@ import Foundation
 /// protocol stays small. `LivePitchDetector` conforms to both;
 /// `MockPitchDetector` only implements `PitchDetector` — there's no real
 /// device behind a scripted stream.
+nonisolated
 protocol AudioDeviceController: AnyObject {
 
     // MARK: - Input device
