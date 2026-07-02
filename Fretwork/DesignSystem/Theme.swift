@@ -21,6 +21,11 @@ enum Theme {
         static let outOfTune        = SwiftUI.Color.orange
         static let farOutOfTune     = SwiftUI.Color.red
 
+        /// Neutral fill for gauge and meter tracks.
+        static let track            = SwiftUI.Color.gray.opacity(0.2)
+        /// Zero/center markers on gauges.
+        static let marker           = SwiftUI.Color.primary.opacity(0.4)
+
         /// Returns a tuning-feedback color for an absolute cents-off value.
         static func tuningColor(centsOff: Double) -> SwiftUI.Color {
             let absCents = Swift.abs(centsOff)
@@ -50,5 +55,9 @@ enum Theme {
         static let cornerRadius: CGFloat = 12
         static let cardPadding: CGFloat  = 24
         static let sectionSpacing: CGFloat = 16
+        /// Outer margin between page content and the window edge.
+        static let pagePadding: CGFloat = 20
+        /// Spacing around control bars (pickers, toolbars) at the top of a page.
+        static let controlSpacing: CGFloat = 12
     }
 }

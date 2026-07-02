@@ -9,13 +9,15 @@ import SwiftUI
 struct FretworkApp: App {
     @State private var pitchDetector = LivePitchDetector()
     @State private var audioSettings = AudioSettings()
+    @State private var selection: AppSection? = .tuner
 
     var body: some Scene {
         WindowGroup {
             RootView(
                 pitchDetector: pitchDetector,
                 chordDetector: pitchDetector,
-                audioSettings: audioSettings
+                audioSettings: audioSettings,
+                selection: $selection
             )
             .frame(minWidth: 720, minHeight: 480)
             .task {
@@ -26,5 +28,17 @@ struct FretworkApp: App {
         }
         .windowStyle(.titleBar)
         .windowResizability(.contentMinSize)
+        .commands {
+            // ⌘1–⌘4 jump between sidebar sections, mirrored in a Go menu.
+            CommandMenu("Go") {
+                ForEach(Array(AppSection.allCases.enumerated()), id: \.element) { index, section in
+                    Button(section.title) { selection = section }
+                        .keyboardShortcut(
+                            KeyEquivalent(Character("\(index + 1)")),
+                            modifiers: .command
+                        )
+                }
+            }
+        }
     }
 }

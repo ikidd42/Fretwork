@@ -6,8 +6,9 @@ struct RootView: View {
     let pitchDetector: any PitchDetector
     let chordDetector: (any ChordDetector)?
     @Bindable var audioSettings: AudioSettings
+    /// Owned by the App so the Go menu's ⌘1–⌘4 shortcuts can drive it.
+    @Binding var selection: AppSection?
 
-    @State private var selection: AppSection? = .tuner
     @State private var showingAudioPopover = false
 
     var body: some View {
@@ -73,9 +74,11 @@ struct RootView: View {
 }
 
 #Preview {
-    RootView(
+    @Previewable @State var selection: AppSection? = .tuner
+    return RootView(
         pitchDetector: MockPitchDetector(),
         chordDetector: MockChordDetector(),
-        audioSettings: AudioSettings()
+        audioSettings: AudioSettings(),
+        selection: $selection
     )
 }

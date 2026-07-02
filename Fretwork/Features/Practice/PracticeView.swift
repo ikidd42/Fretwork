@@ -20,8 +20,8 @@ struct PracticeView: View {
         VStack(spacing: 0) {
             // Top bar: mode picker + key/scale
             topControls
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
+                .padding(.horizontal, Theme.Metrics.pagePadding)
+                .padding(.top, Theme.Metrics.controlSpacing)
 
             Divider()
                 .padding(.top, 8)
@@ -31,7 +31,7 @@ struct PracticeView: View {
                 VStack(spacing: Theme.Metrics.sectionSpacing) {
                     // Beat indicator
                     beatIndicator
-                        .padding(.top, 16)
+                        .padding(.top, Theme.Metrics.sectionSpacing)
 
                     // Mode-specific content
                     modeContent
@@ -47,8 +47,8 @@ struct PracticeView: View {
                         scoringSection
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 20)
+                .padding(.horizontal, Theme.Metrics.pagePadding)
+                .padding(.bottom, Theme.Metrics.pagePadding)
             }
         }
         .task {

@@ -92,11 +92,11 @@ private struct CentsIndicator: View {
 
                 ZStack {
                     Capsule()
-                        .fill(Color.gray.opacity(0.2))
+                        .fill(Theme.Color.track)
                         .frame(height: 8)
 
                     Rectangle()
-                        .fill(Color.primary.opacity(0.4))
+                        .fill(Theme.Color.marker)
                         .frame(width: 2, height: 28)
 
                     if isActive {
