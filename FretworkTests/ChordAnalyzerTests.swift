@@ -55,7 +55,10 @@ final class ChordAnalyzerTests: XCTestCase {
         guard n > 0 else { return }
         let f0 = fundamental * pow(2, detuneCents / 1200)
         let inharmonicity = 4e-4
-        let harmonicAmplitudes: [Double] = [1.0, 0.9, 0.7, 0.4, 0.25]
+        // Through the 7th harmonic: live-guitar logs showed strong 5th/7th
+        // harmonic content (the 5th harmonic of a chord's fifth is the
+        // major 7th — the source of persistent X↔Xmaj7 flapping).
+        let harmonicAmplitudes: [Double] = [1.0, 0.9, 0.7, 0.5, 0.45, 0.3, 0.25]
         let totalWeight = harmonicAmplitudes.reduce(0, +)
         for i in 0..<n {
             let t = Double(i) / sampleRate
@@ -245,6 +248,51 @@ final class ChordAnalyzerTests: XCTestCase {
             }
             XCTAssertLessThan(worstRun, 10,
                 "\(expected.name): a foreign chord held for \(worstRun) consecutive frames — tally \(Dictionary(uniqueKeysWithValues: tally.map { ($0.key.name, $0.value) }))")
+        }
+    }
+
+    /// Barre chords are the hard case Ian hit live: the third is a single
+    /// finger among doubled roots and fifths, and strings under the barre
+    /// ring weaker than open strings. An activation-floor experiment made
+    /// exactly this shape flicker against nil — keep it covered.
+    func testBarreChordsWithUnevenStringsClassifyCorrectly() {
+        let barres: [(chord: Chord, frequencies: [Double])] = [
+            (Chord(root: .a, quality: .major),                       // E-shape, 5th fret
+             [110.00, 164.81, 220.00, 277.18, 329.63, 440.00]),      // A E A C# E A
+            (Chord(root: .g, quality: .major),                       // E-shape, 3rd fret
+             [98.00, 146.83, 196.00, 246.94, 293.66, 392.00]),       // G D G B D G
+            (Chord(root: .b, quality: .minor),                       // A-shape, 2nd fret
+             [123.47, 185.00, 246.94, 293.66, 369.99]),              // B F# B D F#
+        ]
+        // Barre-typical dynamics: solid outer strings, weaker inner ones,
+        // the third weakest of all.
+        for (expected, frequencies) in barres {
+            let third = expected.pitchClasses[1]
+            let amplitudes = frequencies.enumerated().map { (i, f) -> Double in
+                let pc = ((Int(round(12 * log2(f / 440))) % 12) + 12 + 9) % 12
+                if pc == third.rawValue { return 0.5 }
+                return [1.0, 0.7, 0.8, 0.65, 0.75, 0.9][i % 6]
+            }
+            let detunes = frequencies.indices.map { Double([3, -2, 2, -4, 1, -3][$0 % 6]) }
+            let samples = strummedChord(frequencies: frequencies, duration: 1.5,
+                                        amplitudes: amplitudes, detunes: detunes)
+            let (all, tally) = detections(for: samples)
+            let correct = tally[expected] ?? 0
+            guard let winner = tally.max(by: { $0.value < $1.value })?.key else {
+                XCTFail("\(expected.name): nothing detected from a barre strum")
+                continue
+            }
+            XCTAssertEqual(winner, expected,
+                "\(expected.name): majority was \(winner.name) — \(correct)/\(all.count) correct, tally \(Dictionary(uniqueKeysWithValues: tally.map { ($0.key.name, $0.value) }))")
+            var worstRun = 0, run = 0
+            var runChord: Chord?
+            for (chord, _) in all {
+                if chord == expected { run = 0; runChord = nil }
+                else if chord == runChord { run += 1; worstRun = max(worstRun, run) }
+                else { runChord = chord; run = 1; worstRun = max(worstRun, run) }
+            }
+            XCTAssertLessThan(worstRun, 10,
+                "\(expected.name): a foreign chord held for \(worstRun) consecutive frames")
         }
     }
 

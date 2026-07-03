@@ -219,13 +219,18 @@ final class PitchAnalyzerTests: XCTestCase {
         }
     }
 
-    /// Every pitch-consuming ViewModel should share one gate value instead
-    /// of duplicating a hand-copied literal (the root cause of the bug:
-    /// `ChordAnalyzer` had already drifted to 0.02 while the four pitch
-    /// ViewModels stayed at 0.05).
-    func testDefaultAmplitudeThresholdMatchesChordAnalyzer() {
+    /// The two gates diverge *deliberately*: a single string is meaningful
+    /// down to near-silence (pitch gate 0.02), but a chord's identity dies
+    /// earlier in the decay — its single-string third fades first and the
+    /// residue misreads as sus chords — so the chord gate sits higher.
+    /// This test pins the relationship so neither drifts by accident
+    /// (an unexplained 2.5× divergence here was the original tuner bug).
+    func testChordGateIsStricterThanPitchGate() {
         let chordAnalyzer = ChordAnalyzer()
-        XCTAssertEqual(DetectedPitch.defaultAmplitudeThreshold, Double(chordAnalyzer.amplitudeThreshold),
-            accuracy: 0.0001)
+        XCTAssertGreaterThan(Double(chordAnalyzer.amplitudeThreshold),
+                             DetectedPitch.defaultAmplitudeThreshold)
+        XCTAssertLessThanOrEqual(Double(chordAnalyzer.amplitudeThreshold),
+                                 DetectedPitch.defaultAmplitudeThreshold * 3,
+            "chord gate drifted far above the pitch gate — revisit deliberately")
     }
 }

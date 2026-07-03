@@ -22,10 +22,20 @@ final class ChordAnalyzer: @unchecked Sendable {
     // MARK: - Configuration
 
     let windowSize: Int
-    /// Minimum confidence to report a chord. Below this → no chord detected.
+    /// Minimum confidence to *acquire* a chord. Below this → no chord detected.
     var confidenceThreshold: Float = 0.65
+    /// Minimum confidence to *hold* an already-reported chord (Schmitt
+    /// trigger — see `matchChord`). Must be below `confidenceThreshold`.
+    var releaseThreshold: Float = 0.55
     /// Minimum RMS amplitude to attempt analysis. Silence → no chord.
-    var amplitudeThreshold: Float = 0.02
+    ///
+    /// Deliberately 2× the pitch detector's gate
+    /// (`DetectedPitch.defaultAmplitudeThreshold`): a single string is
+    /// meaningful right down to near-silence, but a chord's identity dies
+    /// earlier — in a decaying strum the (usually single-string) third
+    /// fades first, and below ~0.04 RMS the residue reads as spurious sus
+    /// chords held for seconds at a time.
+    var amplitudeThreshold: Float = 0.04
 
     // MARK: - FFT setup
 
@@ -53,18 +63,39 @@ final class ChordAnalyzer: @unchecked Sendable {
 
     // MARK: - Temporal smoothing
 
-    /// Exponential moving average of the chromagram across frames.
-    /// Smooths out transients so chords are detected more stably.
+    /// Exponential moving average of the chromagram across frames, with an
+    /// energy-adaptive factor (attack/release pattern):
+    ///
+    /// - While signal energy is **rising** (a fresh strum or chord change),
+    ///   smooth lightly so the chromagram tracks the new chord fast and
+    ///   attack misreads flush out quickly.
+    /// - While **sustaining/decaying**, smooth heavily: live-guitar logs
+    ///   showed harmonic beating at ~5–10 Hz swinging template scores
+    ///   enough to flap between related chords (A↔Amaj7) every ~50 ms.
+    ///   0.95 ≈ a 53 ms time constant at the IOProc rate, which averages
+    ///   the beats out.
+    ///
+    /// A single fixed factor can't do both jobs: fast passes the beats
+    /// through, slow embalms the strum transient for ~300 ms and lets a
+    /// wrong attack reading hold the output.
     private var smoothedChromagram: [Float]
-    private let chromaSmoothingFactor: Float = 0.7  // 0 = no smoothing, 1 = full memory
+    private let attackSmoothingFactor: Float = 0.7
+    private let sustainSmoothingFactor: Float = 0.95
+    private var previousRMS: Float = 0
 
     // MARK: - Hysteresis
 
     /// The last reported chord. A new chord must beat it by `hysteresisMargin`
     /// in cosine similarity to replace it. Prevents flickering.
+    ///
+    /// 0.06 rather than 0.04: harmonic beating swings related chords'
+    /// scores past ±0.04 within a sustained strum. Not higher — an attack
+    /// transient can win the first report, and a large margin entrenches
+    /// that mistake (the chromagram EMA above does the heavy anti-flap
+    /// lifting; this margin only needs to absorb the residual).
     private var lastReportedChord: Chord?
     private var lastReportedScore: Float = 0
-    private let hysteresisMargin: Float = 0.04  // new chord must score 4% higher
+    private let hysteresisMargin: Float = 0.06
 
     init(windowSize: Int = 4096) {
         self.windowSize = windowSize
@@ -124,15 +155,29 @@ final class ChordAnalyzer: @unchecked Sendable {
             windowedBuffer[i] = workBuffer[(writePosition + i) % windowSize]
         }
 
-        // RMS check — skip silent frames
+        // RMS check — skip silent frames. The gate has hysteresis like the
+        // confidence threshold does: *starting* analysis requires the full
+        // threshold, but while a chord is actively reported we keep
+        // analyzing down to half of it. Barre chords ring quieter than
+        // open chords and their decay otherwise strobes across a fixed
+        // gate (chord/nil flicker every few frames at identical
+        // confidence), while the higher acquire level still stops a dead
+        // strum's residue from starting a fresh — and spurious — report.
         var rms: Float = 0
         vDSP_rmsqv(windowedBuffer, 1, &rms, vDSP_Length(windowSize))
-        guard rms > amplitudeThreshold else {
+        let effectiveGate = lastReportedChord != nil ? amplitudeThreshold * 0.5 : amplitudeThreshold
+        guard rms > effectiveGate else {
             // Decay the smoothed chromagram toward zero during silence
             var decay: Float = 0.5
             vDSP_vsmul(smoothedChromagram, 1, &decay, &smoothedChromagram, 1, 12)
+            previousRMS = 0
             return nil
         }
+
+        // Attack detection for the adaptive chroma EMA: energy meaningfully
+        // above the last frame's means new string onsets.
+        let isAttack = rms > previousRMS * 1.1
+        previousRMS = rms
 
         // ── Step 1: Apply Hann window ──────────────────────────────────
         vDSP_vmul(windowedBuffer, 1, hannWindow, 1, &windowedBuffer, 1, vDSP_Length(windowSize))
@@ -162,7 +207,7 @@ final class ChordAnalyzer: @unchecked Sendable {
         }
 
         // ── Step 4: Build chromagram ───────────────────────────────────
-        buildChromagram(sampleRate: sampleRate)
+        buildChromagram(sampleRate: sampleRate, isAttack: isAttack)
 
         // ── Step 5: Match against templates ────────────────────────────
         return matchChord()
@@ -176,6 +221,7 @@ final class ChordAnalyzer: @unchecked Sendable {
         for i in 0..<12 {
             smoothedChromagram[i] = 0
         }
+        previousRMS = 0
         lastReportedChord = nil
         lastReportedScore = 0
     }
@@ -198,12 +244,20 @@ final class ChordAnalyzer: @unchecked Sendable {
     /// very low rumble or high-frequency content that isn't musically relevant.
     private static let maxPeaks = 128
 
-    /// Attenuation applied to peaks identified as overtones of a stronger
-    /// lower peak. Not zero — a genuine unison with another string's
-    /// harmonic keeps a foothold.
-    private let harmonicAttenuation: Float = 0.15
+    /// Attenuation applied to peaks identified as overtones of a lower
+    /// peak. Deliberately harsh: the later sqrt compression halves any
+    /// attenuation expressed in energy (×0.15 energy → ×0.39 amplitude),
+    /// so a gentle sieve leaks phantoms right back above the template
+    /// activation floor. ×0.02 survives compression as ×0.14 — below the
+    /// noise gate and floor. A genuine unison with another string's
+    /// harmonic loses this peak, but its pitch class survives through the
+    /// string's own fundamental.
+    private let harmonicAttenuation: Float = 0.02
 
-    private func buildChromagram(sampleRate: Double) {
+    /// Odd-harmonic ratios checked by the sieve (see Pass 2 below).
+    private static let sieveDivisors: [Double] = [3, 5, 7]
+
+    private func buildChromagram(sampleRate: Double, isAttack: Bool) {
         // Reset chromagram bins
         for i in 0..<12 { chromagram[i] = 0 }
 
@@ -246,27 +300,43 @@ final class ChordAnalyzer: @unchecked Sendable {
         }
 
         // ── Pass 2: harmonic sieve, then accumulate pitch classes ──────
-        // A peak sitting at ~3× the frequency of a comparably strong lower
-        // peak is 3rd-harmonic overtone energy, not a played note — and it
-        // lands a *fifth* above the source's pitch class, injecting a
-        // phantom note (e.g. sustained Em: the B strings' 3rd harmonic is
-        // F#, and {E, B, F#} reads as Bsus4 whenever the single G string is
-        // weaker than the doubled E/B strings). Even harmonics (2×, 4×) are
-        // deliberately NOT sieved: they fold onto the same pitch class as
-        // their fundamental, so they add legitimate reinforcement — octave-
-        // doubled roots are what anchor open-voicing classification.
+        // A peak sitting at ~3×, ~5×, or ~7× the frequency of a comparably
+        // strong lower peak is overtone energy, not a played note. Those
+        // odd harmonics land on *different pitch classes* than their source
+        // — a fifth (3×), major third (5×), and flat seventh (7×) above —
+        // injecting phantom notes. Live-guitar logs showed all three: the
+        // fifth's 5th harmonic is the root's major 7th (A flapping to
+        // Amaj7), the B strings' 7th harmonic is A (Em reading Esus4), and
+        // the root's own 7th harmonic makes majors read as dominant 7ths.
+        // Even harmonics (2×, 4×) are deliberately NOT sieved: they fold
+        // onto the same pitch class as their fundamental, so they add
+        // legitimate reinforcement — octave-doubled roots are what anchor
+        // open-voicing classification. (6× is caught by the ÷3 check
+        // against the source's 2nd harmonic.) A real played note can't
+        // trip the ÷5/÷7 checks: that would require two chord tones 2+
+        // octaves plus a third apart, wider than guitar chord voicings.
         for i in 0..<peakCount {
             let f = peakFrequencies[i]
             var isOvertone = false
-            let sub = f / 3
-            for j in 0..<peakCount where j != i {
-                // ±60 cents absorbs detuning, string inharmonicity
-                // (stiff strings run harmonics slightly sharp), and
-                // interpolation error.
-                let cents = abs(1200 * log2(peakFrequencies[j] / sub))
-                if cents < 60, peakEnergies[j] >= peakEnergies[i] * 0.5 {
-                    isOvertone = true
-                    break
+            for divisor in Self.sieveDivisors where !isOvertone {
+                let sub = f / divisor
+                for j in 0..<peakCount where j != i {
+                    // ±60 cents absorbs detuning, string inharmonicity
+                    // (stiff strings run harmonics slightly sharp), the
+                    // 7th harmonic's natural -31¢ offset from 12-TET, and
+                    // interpolation error.
+                    //
+                    // The source peak only needs 25% of the overtone's
+                    // energy: on real amplified guitar the body/amp roll
+                    // off low fundamentals and reverb stacks harmonic
+                    // energy, so an overtone routinely out-powers the
+                    // string that produced it. A genuine peak at the
+                    // sub-harmonic position is evidence enough.
+                    let cents = abs(1200 * log2(peakFrequencies[j] / sub))
+                    if cents < 60, peakEnergies[j] >= peakEnergies[i] * 0.25 {
+                        isOvertone = true
+                        break
+                    }
                 }
             }
 
@@ -318,10 +388,12 @@ final class ChordAnalyzer: @unchecked Sendable {
             vDSP_vsmul(chromagram, 1, &s, &chromagram, 1, 12)
         }
 
-        // Apply temporal smoothing (EMA)
+        // Apply temporal smoothing (EMA) — fast during attack, slow in
+        // sustain. See the smoothing-factor docs above.
+        let factor = isAttack ? attackSmoothingFactor : sustainSmoothingFactor
         for i in 0..<12 {
-            smoothedChromagram[i] = chromaSmoothingFactor * smoothedChromagram[i]
-                                  + (1 - chromaSmoothingFactor) * chromagram[i]
+            smoothedChromagram[i] = factor * smoothedChromagram[i]
+                                  + (1 - factor) * chromagram[i]
         }
     }
 
@@ -329,6 +401,14 @@ final class ChordAnalyzer: @unchecked Sendable {
 
     /// Find the best matching chord template via cosine similarity,
     /// with hysteresis to prevent flickering between similar chords.
+    ///
+    /// No per-tone eligibility floor here, deliberately: an earlier
+    /// version disqualified templates whose tones fell below a fraction
+    /// of the strongest bin, but a barre chord's single third routinely
+    /// dips that low (one finger among doubled roots), which made real
+    /// chords flicker against nil. Phantom-note extensions (maj7, sus)
+    /// are handled upstream instead — the harmonic sieve crushes overtone
+    /// peaks hard enough that they can't carry a template.
     private func matchChord() -> (chord: Chord, confidence: Double)? {
         var bestChord: Chord?
         var bestScore: Float = -1
@@ -345,7 +425,20 @@ final class ChordAnalyzer: @unchecked Sendable {
             }
         }
 
+        // Schmitt trigger on confidence: acquiring a chord requires
+        // `confidenceThreshold`, but *holding* one only requires
+        // `releaseThreshold`. Real doubled strings beat slowly and dip the
+        // score below the acquire level for a frame or two; without the
+        // lower release level the report flickered chord/nil/chord with
+        // the incumbent forgotten each time.
         guard let chord = bestChord, bestScore >= confidenceThreshold else {
+            if let last = lastReportedChord,
+               let tpl = templates.first(where: { $0.chord == last }) {
+                let lastScore = cosineSimilarity(smoothedChromagram, tpl.profile)
+                if lastScore >= releaseThreshold {
+                    return (last, Double(lastScore))
+                }
+            }
             lastReportedChord = nil
             lastReportedScore = 0
             return nil
@@ -357,10 +450,11 @@ final class ChordAnalyzer: @unchecked Sendable {
         guard gap > 0.02 else {
             // Ambiguous — stick with whatever was last reported.
             if let last = lastReportedChord {
-                // Re-score the last chord to see if it's still viable.
+                // Re-score the last chord to see if it's still viable
+                // (release level, consistent with the Schmitt trigger above).
                 if let tpl = templates.first(where: { $0.chord == last }) {
                     let lastScore = cosineSimilarity(smoothedChromagram, tpl.profile)
-                    if lastScore >= confidenceThreshold {
+                    if lastScore >= releaseThreshold {
                         return (last, Double(lastScore))
                     }
                 }
