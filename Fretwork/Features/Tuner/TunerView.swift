@@ -49,9 +49,12 @@ struct TunerView: View {
                             .offset(x: 24, y: 24)
                     }
             } else {
+                // Idle: the biggest glyph in the app gets the full pearl
+                // treatment while it waits. Once a note lands, functional
+                // tuning color takes over.
                 Text("—")
                     .font(Theme.Font.noteDisplay)
-                    .foregroundStyle(Theme.Color.secondaryText)
+                    .pearlShimmer()
             }
         }
         .frame(height: 180)

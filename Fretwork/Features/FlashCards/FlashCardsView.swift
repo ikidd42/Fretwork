@@ -33,7 +33,7 @@ struct FlashCardsView: View {
             VStack(alignment: .leading, spacing: Theme.Metrics.sectionSpacing) {
                 Text("Flash Cards")
                     .font(Theme.Font.title)
-                    .foregroundStyle(Theme.Color.primaryText)
+                    .pearlStatic()
 
                 Text("Choose a deck to practice")
                     .font(Theme.Font.body)
@@ -72,7 +72,7 @@ struct FlashCardsView: View {
         VStack(alignment: .leading, spacing: 8) {
             Label(type.displayName, systemImage: type.symbolName)
                 .font(Theme.Font.heading)
-                .foregroundStyle(Theme.Color.primaryText)
+                .pearlStatic()
 
             Text(type.description)
                 .font(Theme.Font.caption)
@@ -224,7 +224,7 @@ struct FlashCardsView: View {
             // Prompt
             Text(card.prompt)
                 .font(Theme.Font.title)
-                .foregroundStyle(Theme.Color.primaryText)
+                .pearlShimmer()
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 600)
 
@@ -419,7 +419,7 @@ struct FlashCardsView: View {
 
             Text("Session Complete")
                 .font(Theme.Font.title)
-                .foregroundStyle(Theme.Color.primaryText)
+                .pearlStatic()
 
             Text(viewModel.selectedDeck?.name ?? "")
                 .font(Theme.Font.heading)

@@ -104,12 +104,14 @@ struct FretboardView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Accidentals")
                     .font(Theme.Font.caption)
+                    .fixedSize()
                     .foregroundStyle(Theme.Color.secondaryText)
                 Picker("Accidentals", selection: $viewModel.accidental) {
                     Text("♯").tag(Accidental.sharp)
                     Text("♭").tag(Accidental.flat)
                 }
                 .pickerStyle(.segmented)
+                .labelsHidden()
                 .frame(width: 80)
             }
 
@@ -151,7 +153,7 @@ struct FretboardView: View {
                             .foregroundStyle(Theme.Color.accent)
                         Text(chord.name)
                             .font(Theme.Font.heading)
-                            .foregroundStyle(Theme.Color.primaryText)
+                            .pearlStatic()
                         Text("\(Int(viewModel.chordConfidence * 100))%")
                             .font(Theme.Font.caption)
                             .foregroundStyle(Theme.Color.secondaryText)
@@ -183,6 +185,7 @@ struct FretboardView: View {
                     } else {
                         Text("Listening")
                             .font(Theme.Font.caption)
+                            .fixedSize()
                             .foregroundStyle(Theme.Color.secondaryText)
                     }
                 }

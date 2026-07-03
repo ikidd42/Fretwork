@@ -20,6 +20,10 @@ struct FretworkApp: App {
                 selection: $selection
             )
             .frame(minWidth: 720, minHeight: 480)
+            // The brand theme is dark indigo throughout; forcing dark
+            // appearance keeps native controls (pickers, toggles,
+            // popovers) legible on it regardless of the system setting.
+            .preferredColorScheme(.dark)
             .task {
                 // Idempotent — pushes persisted settings into the audio engine
                 // and connects the controller for future updates.

@@ -371,6 +371,7 @@ struct PracticeView: View {
                 HStack(spacing: 8) {
                     Text("Beats")
                         .font(Theme.Font.body)
+                        .fixedSize()
                         .foregroundStyle(Theme.Color.secondaryText)
 
                     Picker("Beats per measure", selection: $vm.beatsPerMeasure) {
@@ -378,6 +379,7 @@ struct PracticeView: View {
                             Text("\(n)").tag(n)
                         }
                     }
+                    .labelsHidden()
                     .frame(width: 60)
                 }
 
@@ -387,6 +389,7 @@ struct PracticeView: View {
                 HStack(spacing: 8) {
                     Text("Sound")
                         .font(Theme.Font.body)
+                        .fixedSize()
                         .foregroundStyle(Theme.Color.secondaryText)
 
                     Picker("Click sound", selection: $vm.clickSound) {
@@ -394,6 +397,7 @@ struct PracticeView: View {
                             Text(sound.rawValue.capitalized).tag(sound)
                         }
                     }
+                    .labelsHidden()
                     .frame(width: 140)
                 }
 

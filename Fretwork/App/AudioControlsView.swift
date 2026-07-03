@@ -12,6 +12,7 @@ struct AudioControlsView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Audio")
                 .font(Theme.Font.heading)
+                .pearlStatic()
 
             inputDeviceSection
             outputDeviceSection
