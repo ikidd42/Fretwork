@@ -257,6 +257,15 @@ final class FlashCardsViewModel {
     private var chordHoldStartTime: Date?
     let chordHoldDuration: Double = 1.0  // chords need longer hold
 
+    /// A wrong chord only counts against the player after it has been
+    /// continuously detected for this long. The attack of a strum
+    /// legitimately reads as partial voicings while the strings arrive
+    /// (~100 ms) and the analyzer's smoothing settles — without this
+    /// grace, cards were failed by their own strum transient.
+    let wrongChordGraceDuration: Double = 0.6
+    private var wrongChordCandidate: Chord?
+    private var wrongChordStartTime: Date?
+
     // MARK: - Dependencies
 
     private let detector: any PitchDetector
@@ -348,6 +357,8 @@ final class FlashCardsViewModel {
         silenceStartTime = nil
         candidateChordForCard = nil
         candidateChordCardCount = 0
+        wrongChordCandidate = nil
+        wrongChordStartTime = nil
 
         if currentCardIndex + 1 < deck.cards.count {
             currentCardIndex += 1
@@ -385,6 +396,8 @@ final class FlashCardsViewModel {
         silenceStartTime = nil
         candidateChordForCard = nil
         candidateChordCardCount = 0
+        wrongChordCandidate = nil
+        wrongChordStartTime = nil
     }
 
     // MARK: - Pitch matching
@@ -668,6 +681,8 @@ final class FlashCardsViewModel {
             chordConfidence = 0
             candidateChordForCard = nil
             candidateChordCardCount = 0
+            wrongChordCandidate = nil
+            wrongChordStartTime = nil
             // Chord released — if waiting for silence, treat as silence.
             if waitingForSilence {
                 if silenceStartTime == nil {
@@ -715,6 +730,8 @@ final class FlashCardsViewModel {
 
         if detected.chord == expectedChord {
             // Correct chord — hold-to-confirm.
+            wrongChordCandidate = nil
+            wrongChordStartTime = nil
             if holdingChord == detected.chord, let start = chordHoldStartTime {
                 let elapsed = Date().timeIntervalSince(start)
                 let progress = min(elapsed / chordHoldDuration, 1.0)
@@ -733,7 +750,19 @@ final class FlashCardsViewModel {
                 feedback = .holding(progress: 0)
             }
         } else {
-            // Wrong chord.
+            // Wrong chord — but only if *sustained*. Strum attacks read as
+            // partial voicings for the first ~100 ms, so a wrong chord must
+            // ring continuously for the grace duration before it counts.
+            if wrongChordCandidate != detected.chord {
+                wrongChordCandidate = detected.chord
+                wrongChordStartTime = Date()
+                return
+            }
+            guard let start = wrongChordStartTime,
+                  Date().timeIntervalSince(start) >= wrongChordGraceDuration else { return }
+            wrongChordCandidate = nil
+            wrongChordStartTime = nil
+
             resetChordHold()
 
             totalAttempts += 1

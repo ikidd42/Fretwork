@@ -32,6 +32,15 @@ final class LivePitchDetector: PitchDetector, ChordDetector, AudioDeviceControll
 
     private static let logger = Logger(subsystem: "com.fretwork.app", category: "audio")
 
+    /// Transition-only trace of what the chord analyzer reports, for live
+    /// debugging against a real guitar:
+    ///   log stream --predicate 'subsystem == "com.fretwork.app" AND category == "chords"' --level debug
+    private static let chordLogger = Logger(subsystem: "com.fretwork.app", category: "chords")
+
+    /// Last chord name written to `chordLogger`. Touched only on the IO
+    /// thread inside `handleHALInput`, so no locking is needed.
+    private var lastLoggedChordName = ""
+
     /// Guards all mutable state shared with the IO thread.
     private let lock = NSLock()
 
@@ -308,8 +317,16 @@ final class LivePitchDetector: PitchDetector, ChordDetector, AudioDeviceControll
                     confidence: result.confidence,
                     timestamp: CACurrentMediaTime()
                 )
+                if result.chord.name != lastLoggedChordName {
+                    lastLoggedChordName = result.chord.name
+                    Self.chordLogger.debug("chord: \(result.chord.name, privacy: .public) (\(String(format: "%.2f", result.confidence), privacy: .public))")
+                }
                 chordCallback(detected)
             } else {
+                if lastLoggedChordName != "-" {
+                    lastLoggedChordName = "-"
+                    Self.chordLogger.debug("chord: -")
+                }
                 chordCallback(nil)
             }
         }
