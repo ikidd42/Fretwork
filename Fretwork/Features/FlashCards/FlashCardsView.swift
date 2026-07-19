@@ -503,7 +503,7 @@ struct FlashCardsView: View {
                             colors: [scoreColor.opacity(0.55), scoreColor],
                             center: .center,
                             startAngle: .degrees(-90),
-                            endAngle: .degrees(270 * CGFloat(viewModel.scorePercent) / 100 - 90)
+                            endAngle: .degrees(270.0 * Double(viewModel.scorePercent) / 100.0 - 90.0)
                         ),
                         style: StrokeStyle(lineWidth: 9, lineCap: .round)
                     )
