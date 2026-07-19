@@ -1,8 +1,9 @@
 import SwiftUI
 
 /// Interactive circle of fifths drawn as two concentric rings: major keys on the
-/// outer ring, their relative minors on the inner ring. The selected key is
-/// highlighted, and tapping any segment updates the key.
+/// outer ring, their relative minors on the inner ring. The selected key wears
+/// a mother-of-pearl segment — the same finish as the sidebar inlays — and
+/// tapping any segment updates the key.
 ///
 /// Layout: 12 segments, starting at 12-o'clock with C, moving clockwise by
 /// fifths: C–G–D–A–E–B–F♯/G♭–D♭–A♭–E♭–B♭–F.
@@ -30,7 +31,8 @@ struct CircleOfFifthsView: View {
     ]
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
+            SectionHeader("Circle of Fifths")
             keyLabel
             circleCanvas
             legend
@@ -43,7 +45,7 @@ struct CircleOfFifthsView: View {
         VStack(spacing: 2) {
             Text("\(selectedRoot.name(preferring: accidental)) Major")
                 .font(Theme.Font.heading)
-                .foregroundStyle(Theme.Color.primaryText)
+                .pearlStatic()
 
             let rm = Self.relativeMinor(of: selectedRoot)
             Text("Relative minor: \(rm.name(preferring: accidental))m")
@@ -60,7 +62,7 @@ struct CircleOfFifthsView: View {
             let center = CGPoint(x: geo.size.width / 2, y: size / 2)
             let outerR = size / 2 - 4
             let midR = outerR * 0.68
-            let innerR = outerR * 0.42
+            let innerR = outerR * 0.44
 
             Canvas { context, _ in
                 drawOuterRing(context: context, center: center, outer: outerR, inner: midR)
@@ -87,12 +89,9 @@ struct CircleOfFifthsView: View {
             let path = segmentPath(center: center, outerR: outer, innerR: inner,
                                    start: startAngle, end: endAngle)
 
-            // Fill
-            let fill = segmentColor(for: pc, isMinor: false)
-            context.fill(path, with: .color(fill))
-
-            // Stroke
-            context.stroke(path, with: .color(Theme.Color.background), lineWidth: 1.5)
+            let isSelected = pc == selectedRoot
+            fillSegment(context: context, path: path, pc: pc, isMinor: false, isSelected: isSelected)
+            context.stroke(path, with: .color(Theme.Color.stageBottom), lineWidth: 1.5)
 
             // Label
             let labelR = Double((outer + inner) / 2)
@@ -102,10 +101,9 @@ struct CircleOfFifthsView: View {
                 y: Double(center.y) + labelR * sin(midAngle)
             )
             let name = displayName(for: pc, isMinor: false)
-            let isSelected = pc == selectedRoot
             let text = Text(name)
                 .font(.system(size: isSelected ? 14 : 12, weight: isSelected ? .bold : .medium, design: .rounded))
-                .foregroundColor(isSelected ? .white : Theme.Color.primaryText)
+                .foregroundColor(isSelected ? Theme.Color.onAccent : Theme.Color.primaryText)
             context.draw(text, at: labelPt, anchor: .center)
         }
     }
@@ -123,9 +121,10 @@ struct CircleOfFifthsView: View {
             let path = segmentPath(center: center, outerR: outer, innerR: inner,
                                    start: startAngle, end: endAngle)
 
-            let fill = segmentColor(for: minorPC, isMinor: true)
-            context.fill(path, with: .color(fill))
-            context.stroke(path, with: .color(Theme.Color.background), lineWidth: 1.5)
+            let relMinorOfSelected = Self.relativeMinor(of: selectedRoot)
+            let isSelected = minorPC == relMinorOfSelected
+            fillSegment(context: context, path: path, pc: minorPC, isMinor: true, isSelected: isSelected)
+            context.stroke(path, with: .color(Theme.Color.stageBottom), lineWidth: 1.5)
 
             let labelR = Double((outer + inner) / 2)
             let midAngle = (startAngle + endAngle) / 2
@@ -133,12 +132,10 @@ struct CircleOfFifthsView: View {
                 x: Double(center.x) + labelR * cos(midAngle),
                 y: Double(center.y) + labelR * sin(midAngle)
             )
-            let relMinorOfSelected = Self.relativeMinor(of: selectedRoot)
-            let isSelected = minorPC == relMinorOfSelected
             let name = "\(minorPC.name(preferring: accidental))m"
             let text = Text(name)
-                .font(.system(size: isSelected ? 12 : 10, weight: isSelected ? .bold : .regular, design: .rounded))
-                .foregroundColor(isSelected ? .white : Theme.Color.primaryText.opacity(0.8))
+                .font(.system(size: isSelected ? 11 : 10, weight: isSelected ? .bold : .regular, design: .rounded))
+                .foregroundColor(isSelected ? Theme.Color.onAccent : Theme.Color.primaryText.opacity(0.75))
             context.draw(text, at: labelPt, anchor: .center)
         }
     }
@@ -148,24 +145,48 @@ struct CircleOfFifthsView: View {
     private func drawCenterDisc(context: GraphicsContext, center: CGPoint, radius: CGFloat) {
         let rect = CGRect(x: center.x - radius, y: center.y - radius,
                           width: radius * 2, height: radius * 2)
-        context.fill(Circle().path(in: rect), with: .color(Theme.Color.surface))
-        context.stroke(Circle().path(in: rect), with: .color(.primary.opacity(0.1)), lineWidth: 1)
+        context.fill(Circle().path(in: rect), with: .color(Theme.Color.surfaceRaised))
+        context.stroke(Circle().path(in: rect), with: .color(Theme.Color.hairline), lineWidth: 1)
 
-        // Show signature count in center
+        // Key signature count in the center.
         if let count = Self.signatureCounts[selectedRoot] {
-            let sigText: String
-            if count == 0 {
-                sigText = "No ♯/♭"
-            } else if count > 0 {
-                sigText = "\(count)♯"
-            } else {
-                sigText = "\(abs(count))♭"
-            }
+            let sigText = count == 0 ? "No ♯/♭" : (count > 0 ? "\(count)♯" : "\(abs(count))♭")
             let text = Text(sigText)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
                 .foregroundColor(Theme.Color.secondaryText)
             context.draw(text, at: center, anchor: .center)
         }
+    }
+
+    // MARK: - Segment fills
+
+    private func fillSegment(
+        context: GraphicsContext,
+        path: Path,
+        pc: PitchClass,
+        isMinor: Bool,
+        isSelected: Bool
+    ) {
+        if isSelected {
+            // The selected key wears mother-of-pearl.
+            let bounds = path.boundingRect
+            context.fill(path, with: .linearGradient(
+                Gradient(colors: Pearlescent.bandColors),
+                startPoint: CGPoint(x: bounds.minX, y: bounds.minY),
+                endPoint: CGPoint(x: bounds.maxX, y: bounds.maxY)
+            ))
+            return
+        }
+
+        let color: Color
+        if scalePitchClasses.contains(pc) {
+            color = Theme.Color.accent.opacity(isMinor ? 0.12 : 0.16)
+        } else if let active = activePitchClass, pc == active {
+            color = Theme.Color.inTune.opacity(0.32)
+        } else {
+            color = isMinor ? Theme.Color.surface.opacity(0.6) : Theme.Color.surface
+        }
+        context.fill(path, with: .color(color))
     }
 
     // MARK: - Tap overlay
@@ -216,29 +237,6 @@ struct CircleOfFifthsView: View {
         return path
     }
 
-    private func segmentColor(for pc: PitchClass, isMinor: Bool) -> Color {
-        let relMinor = Self.relativeMinor(of: selectedRoot)
-
-        if !isMinor && pc == selectedRoot {
-            return Theme.Color.accent
-        }
-        if isMinor && pc == relMinor {
-            return Theme.Color.accent.opacity(0.7)
-        }
-        // Highlight notes that are in the current scale
-        if scalePitchClasses.contains(pc) {
-            return Theme.Color.accent.opacity(0.15)
-        }
-        // Currently played note
-        if let active = activePitchClass, pc == active {
-            return Theme.Color.inTune.opacity(0.3)
-        }
-
-        return isMinor
-            ? Theme.Color.surface.opacity(0.6)
-            : Theme.Color.surface
-    }
-
     /// Display name, using flats for the flat-side keys (F through Db).
     private func displayName(for pc: PitchClass, isMinor: Bool) -> String {
         // Flat-side keys traditionally use flat names
@@ -251,11 +249,11 @@ struct CircleOfFifthsView: View {
     // MARK: - Legend
 
     private var legend: some View {
-        HStack(spacing: 16) {
-            legendItem(color: Theme.Color.accent, label: "Selected key")
-            legendItem(color: Theme.Color.accent.opacity(0.15), label: "In scale")
+        HStack(spacing: 14) {
+            legendItem(color: Pearlescent.bandColors[3], label: "Selected")
+            legendItem(color: Theme.Color.accent.opacity(0.16), label: "In scale")
             if activePitchClass != nil {
-                legendItem(color: Theme.Color.inTune.opacity(0.3), label: "Playing")
+                legendItem(color: Theme.Color.inTune.opacity(0.32), label: "Playing")
             }
         }
         .font(Theme.Font.caption)
@@ -263,10 +261,14 @@ struct CircleOfFifthsView: View {
     }
 
     private func legendItem(color: Color, label: String) -> some View {
-        HStack(spacing: 4) {
-            RoundedRectangle(cornerRadius: 3)
+        HStack(spacing: 5) {
+            RoundedRectangle(cornerRadius: 3, style: .continuous)
                 .fill(color)
-                .frame(width: 12, height: 12)
+                .frame(width: 10, height: 10)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .strokeBorder(Theme.Color.hairline, lineWidth: 1)
+                )
             Text(label)
         }
     }
@@ -285,8 +287,10 @@ struct CircleOfFifthsView: View {
                 activePitchClass: .g,
                 scalePitchClasses: Set(Scale.major.pitchClasses(in: .c))
             )
-            .frame(width: 320, height: 380)
+            .frame(width: 320, height: 420)
+            .stageCard(padding: 16)
             .padding()
+            .background(StageBackdrop())
         }
     }
 

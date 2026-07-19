@@ -31,7 +31,9 @@ struct Pearlescent: ViewModifier, Animatable {
 
     /// Nacre band palette, cream-anchored. Saturated a touch beyond real
     /// nacre — at sidebar text sizes, subtler stops read as plain white.
-    private static let bands: [Color] = [
+    /// Internal so `Canvas` drawing (fretboard inlays, the nut) can lay the
+    /// same bands down with `GraphicsContext.Shading`.
+    static let bandColors: [Color] = [
         Color(red: 0.98, green: 0.95, blue: 0.84),  // cream
         Color(red: 0.97, green: 0.80, blue: 0.85),  // blush
         Color(red: 0.76, green: 0.94, blue: 0.86),  // mint
@@ -43,7 +45,7 @@ struct Pearlescent: ViewModifier, Animatable {
     /// The banded gradient shared by the animated and static variants.
     static func bandGradient(intensity: Double) -> LinearGradient {
         LinearGradient(
-            colors: bands.map { $0.opacity(intensity) },
+            colors: bandColors.map { $0.opacity(intensity) },
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )

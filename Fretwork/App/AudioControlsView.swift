@@ -9,24 +9,30 @@ struct AudioControlsView: View {
     @Bindable var settings: AudioSettings
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Audio")
-                .font(Theme.Font.heading)
-                .pearlStatic()
+        VStack(alignment: .leading, spacing: 18) {
+            HStack {
+                Text("Audio")
+                    .font(Theme.Font.heading)
+                    .pearlStatic()
+                Spacer()
+                if settings.isMonitoringEnabled {
+                    PillBadge(text: "MONITORING", symbol: "waveform", tint: Theme.Color.accent)
+                }
+            }
 
             inputDeviceSection
             outputDeviceSection
 
             if let error = settings.lastError {
-                Banner(text: error, tint: Theme.Color.outOfTune)
+                Banner(text: error, tint: Theme.Color.outOfTune, symbol: "bolt.trianglebadge.exclamationmark.fill")
             }
 
-            Divider()
+            Divider().overlay(Theme.Color.hairline)
 
             monitoringSection
         }
-        .padding(16)
-        .frame(width: 360)
+        .padding(18)
+        .frame(width: 380)
     }
 
     // MARK: - Input device
@@ -74,9 +80,7 @@ struct AudioControlsView: View {
         binding: Binding<String?>
     ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(label)
-                .font(Theme.Font.caption)
-                .foregroundStyle(Theme.Color.secondaryText)
+            MicroLabel(label)
 
             if devices.isEmpty {
                 Text(emptyMessage)
@@ -90,6 +94,7 @@ struct AudioControlsView: View {
                 }
                 .pickerStyle(.menu)
                 .labelsHidden()
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }
@@ -103,7 +108,7 @@ struct AudioControlsView: View {
     // MARK: - Monitoring
 
     private var monitoringSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             Toggle(isOn: monitoringBinding) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Hear input through output")
@@ -116,17 +121,25 @@ struct AudioControlsView: View {
             .toggleStyle(.switch)
 
             if settings.isMonitoringEnabled {
-                HStack(spacing: 8) {
-                    Image(systemName: "speaker.wave.1")
-                        .foregroundStyle(Theme.Color.secondaryText)
+                HStack(spacing: 10) {
+                    Image(systemName: "speaker.wave.1.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.Color.tertiaryText)
                     Slider(value: gainBinding, in: 0...2)
-                    Image(systemName: "speaker.wave.3")
-                        .foregroundStyle(Theme.Color.secondaryText)
+                    Image(systemName: "speaker.wave.3.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.Color.tertiaryText)
                 }
 
-                Text("If your output device is picking up the room (built-in mic + built-in speakers), expect feedback. Headphones avoid this.")
-                    .font(Theme.Font.caption)
-                    .foregroundStyle(Theme.Color.secondaryText)
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "exclamationmark.shield.fill")
+                        .font(.system(size: 10))
+                        .foregroundStyle(Theme.Color.nearInTune)
+                    Text("Built-in mic + built-in speakers will feed back. Headphones avoid this.")
+                        .font(Theme.Font.caption)
+                        .foregroundStyle(Theme.Color.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }

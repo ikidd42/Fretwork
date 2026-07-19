@@ -1,6 +1,11 @@
 import SwiftUI
 
 /// Practice tab: metronome with scale and chord progression modes.
+///
+/// The transport is the hero — a big play control with a pulsing ring while
+/// running, the BPM readout in hero mono, and glowing beat dots. Everything
+/// else lives in consistently-headed stage cards: the mode drill, the sound
+/// rack, the speed trainer, and the score.
 struct PracticeView: View {
     let detector: any PitchDetector
     let chordDetector: (any ChordDetector)?
@@ -18,37 +23,37 @@ struct PracticeView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Top bar: mode picker + key/scale
             topControls
                 .padding(.horizontal, Theme.Metrics.pagePadding)
                 .padding(.top, Theme.Metrics.controlSpacing)
+                .padding(.bottom, 12)
 
-            Divider()
-                .padding(.top, 8)
-
-            // Main content area
-            ScrollView {
+            if vm.mode == .freeMetronome {
+                // Free mode is just the rig — center it on the stage.
                 VStack(spacing: Theme.Metrics.sectionSpacing) {
-                    // Beat indicator
-                    beatIndicator
-                        .padding(.top, Theme.Metrics.sectionSpacing)
-
-                    // Mode-specific content
-                    modeContent
-
-                    // Metronome controls
-                    metronomeControls
-
-                    // Speed trainer
-                    speedTrainerSection
-
-                    // Scoring
-                    if vm.mode != .freeMetronome {
-                        scoringSection
-                    }
+                    Spacer(minLength: 0)
+                    transportCard
+                    soundCard
+                    speedTrainerCard
+                    Spacer(minLength: 0)
                 }
                 .padding(.horizontal, Theme.Metrics.pagePadding)
-                .padding(.bottom, Theme.Metrics.pagePadding)
+            } else {
+                ScrollView {
+                    VStack(spacing: Theme.Metrics.sectionSpacing) {
+                        transportCard
+
+                        modeContent
+
+                        soundCard
+
+                        speedTrainerCard
+
+                        scoreCard
+                    }
+                    .padding(.horizontal, Theme.Metrics.pagePadding)
+                    .padding(.bottom, Theme.Metrics.pagePadding)
+                }
             }
         }
         .task {
@@ -71,77 +76,127 @@ struct PracticeView: View {
                 }
             }
             .pickerStyle(.segmented)
-            .frame(maxWidth: 500)
+            .frame(maxWidth: 480)
+            .labelsHidden()
 
             Spacer()
 
             // Key picker (for scale & chord modes)
             if vm.mode != .freeMetronome {
-                HStack(spacing: 8) {
-                    Text("Key")
-                        .font(Theme.Font.caption)
-                        .foregroundStyle(Theme.Color.secondaryText)
-
+                VStack(alignment: .leading, spacing: 3) {
+                    MicroLabel("Key")
                     Picker("Root", selection: $vm.selectedRoot) {
                         ForEach(PitchClass.allCases, id: \.self) { pc in
                             Text(pc.sharpName).tag(pc)
                         }
                     }
-                    .frame(width: 60)
+                    .labelsHidden()
+                    .frame(width: 62)
                 }
             }
 
             if vm.mode == .scalePractice {
-                Picker("Scale", selection: $vm.selectedScale) {
-                    ForEach(Scale.catalog, id: \.id) { scale in
-                        Text(scale.name).tag(scale)
+                VStack(alignment: .leading, spacing: 3) {
+                    MicroLabel("Scale")
+                    Picker("Scale", selection: $vm.selectedScale) {
+                        ForEach(Scale.catalog, id: \.id) { scale in
+                            Text(scale.name).tag(scale)
+                        }
                     }
+                    .labelsHidden()
+                    .frame(width: 150)
                 }
-                .frame(width: 160)
             }
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .stageCard(padding: 0)
     }
 
-    // MARK: - Beat Indicator
+    // MARK: - Transport
 
-    private var beatIndicator: some View {
-        VStack(spacing: 12) {
-            // Beat dots
-            HStack(spacing: 8) {
-                ForEach(1...vm.beatsPerMeasure, id: \.self) { beat in
-                    BeatDot(
-                        beat: beat,
-                        currentBeat: vm.currentBeat,
-                        isAccent: beat == 1,
-                        isPlaying: vm.playState != .stopped,
-                        isCountIn: vm.playState == .countingIn
-                    )
+    private var transportCard: some View {
+        VStack(spacing: 14) {
+            HStack(spacing: 22) {
+                PlayButton(isRunning: vm.playState != .stopped, action: vm.toggleMetronome)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    MicroLabel("Tempo")
+                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                        Text("\(Int(vm.bpm))")
+                            .font(Theme.Font.heroNumber)
+                            .foregroundStyle(Theme.Color.primaryText)
+                            .monospacedDigit()
+                            .contentTransition(.numericText())
+                        Text("BPM")
+                            .font(Theme.Font.heading)
+                            .foregroundStyle(Theme.Color.tertiaryText)
+                    }
+
+                    transportStatus
                 }
+
+                Spacer()
+
+                // Beat dots
+                HStack(spacing: 10) {
+                    ForEach(1...vm.beatsPerMeasure, id: \.self) { beat in
+                        BeatDot(
+                            beat: beat,
+                            currentBeat: vm.currentBeat,
+                            isAccent: beat == 1,
+                            isPlaying: vm.playState != .stopped,
+                            isCountIn: vm.playState == .countingIn
+                        )
+                    }
+                }
+                .padding(.trailing, 4)
             }
 
-            // Count-in label
-            if vm.playState == .countingIn {
-                Text("Count in: \(vm.countInBeatsRemaining)")
-                    .font(Theme.Font.heading)
+            // Tempo slider row
+            HStack(spacing: 10) {
+                Button { vm.bpm = max(40, vm.bpm - 1) } label: {
+                    Image(systemName: "minus")
+                        .font(.system(size: 11, weight: .bold))
+                }
+                .buttonStyle(.bordered)
+
+                Slider(value: $vm.bpm, in: 40...300, step: 1)
+
+                Button { vm.bpm = min(300, vm.bpm + 1) } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 11, weight: .bold))
+                }
+                .buttonStyle(.bordered)
+
+                Text("\(Int(vm.bpm))")
+                    .font(Theme.Font.mono)
                     .foregroundStyle(Theme.Color.secondaryText)
+                    .monospacedDigit()
+                    .frame(width: 34, alignment: .trailing)
             }
+        }
+        .frame(maxWidth: .infinity)
+        .stageCard()
+    }
 
-            // BPM display
-            Text("\(Int(vm.bpm)) BPM")
-                .font(.system(size: 48, weight: .bold, design: .rounded))
-                .foregroundStyle(Theme.Color.primaryText)
-                .contentTransition(.numericText())
-
-            // Play/Stop button
-            Button {
-                vm.toggleMetronome()
-            } label: {
-                Image(systemName: vm.playState != .stopped ? "stop.circle.fill" : "play.circle.fill")
-                    .font(.system(size: 56))
-                    .foregroundStyle(vm.playState != .stopped ? Theme.Color.farOutOfTune : Theme.Color.accent)
-            }
-            .buttonStyle(.plain)
-            .keyboardShortcut(.space, modifiers: [])
+    @ViewBuilder
+    private var transportStatus: some View {
+        switch vm.playState {
+        case .stopped:
+            Text("Ready when you are")
+                .font(Theme.Font.caption)
+                .foregroundStyle(Theme.Color.tertiaryText)
+        case .countingIn:
+            Text("Count in · \(vm.countInBeatsRemaining)")
+                .font(Theme.Font.caption.weight(.medium))
+                .foregroundStyle(Theme.Color.nearInTune)
+                .monospacedDigit()
+        case .playing:
+            Text("Bar \(vm.currentMeasure + 1)")
+                .font(Theme.Font.caption)
+                .foregroundStyle(Theme.Color.secondaryText)
+                .monospacedDigit()
         }
     }
 
@@ -164,48 +219,42 @@ struct PracticeView: View {
     // MARK: - Scale Practice
 
     private var scalePracticeContent: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 14) {
             if let target = vm.targetNote {
-                HStack(spacing: 20) {
-                    // Target note
-                    VStack(spacing: 4) {
-                        Text("Play")
-                            .font(Theme.Font.caption)
-                            .foregroundStyle(Theme.Color.secondaryText)
+                HStack(spacing: 0) {
+                    statColumn(label: "Play") {
                         Text(target.pitchClass.sharpName)
-                            .font(.system(size: 64, weight: .bold, design: .rounded))
+                            .font(.system(size: 56, weight: .bold, design: .rounded))
                             .foregroundStyle(noteColor)
                     }
-
-                    // Arrow showing sequence position
-                    VStack(spacing: 4) {
-                        Text("Position")
-                            .font(Theme.Font.caption)
-                            .foregroundStyle(Theme.Color.secondaryText)
+                    statDivider
+                    statColumn(label: "Position") {
                         Text("\(vm.scaleNoteIndex + 1) / \(vm.scaleSequence.count)")
-                            .font(Theme.Font.heading)
-                            .foregroundStyle(Theme.Color.secondaryText)
+                            .font(Theme.Font.statNumber)
+                            .foregroundStyle(Theme.Color.primaryText)
+                            .monospacedDigit()
                     }
-
-                    // What the player is playing
-                    VStack(spacing: 4) {
-                        Text("Playing")
-                            .font(Theme.Font.caption)
-                            .foregroundStyle(Theme.Color.secondaryText)
+                    statDivider
+                    statColumn(label: "Heard") {
                         Text(vm.activePitchClass?.sharpName ?? "—")
-                            .font(.system(size: 40, weight: .semibold, design: .rounded))
+                            .font(Theme.Font.statNumber)
                             .foregroundStyle(vm.activePitchClass != nil
                                              ? Theme.Color.primaryText
-                                             : Theme.Color.secondaryText)
+                                             : Theme.Color.tertiaryText)
                     }
                 }
+            } else {
+                Text("Press play — the scale runs one note per beat, up and back down.")
+                    .font(Theme.Font.body)
+                    .foregroundStyle(Theme.Color.secondaryText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            // Scale note sequence preview
-            scaleSequencePreview
+            if !vm.scaleSequence.isEmpty {
+                scaleSequencePreview
+            }
         }
-        .padding(Theme.Metrics.cardPadding)
-        .background(Theme.Color.surface, in: RoundedRectangle(cornerRadius: Theme.Metrics.cornerRadius))
+        .stageCard()
     }
 
     private var noteColor: Color {
@@ -218,22 +267,18 @@ struct PracticeView: View {
 
     private var scaleSequencePreview: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 4) {
+            HStack(spacing: 5) {
                 ForEach(Array(vm.scaleSequence.enumerated()), id: \.offset) { index, note in
+                    let isCurrent = index == vm.scaleNoteIndex
                     Text(note.pitchClass.sharpName)
-                        .font(index == vm.scaleNoteIndex
-                               ? Theme.Font.heading
-                               : Theme.Font.body)
-                        .foregroundStyle(index == vm.scaleNoteIndex
-                                         ? Theme.Color.accent
-                                         : Theme.Color.secondaryText)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 4)
+                        .font(.system(size: isCurrent ? 13 : 11,
+                                      weight: isCurrent ? .bold : .medium,
+                                      design: .rounded))
+                        .foregroundStyle(isCurrent ? Theme.Color.onAccent : Theme.Color.secondaryText)
+                        .frame(width: 30, height: 30)
                         .background(
-                            index == vm.scaleNoteIndex
-                            ? Theme.Color.accent.opacity(0.15)
-                            : Color.clear,
-                            in: RoundedRectangle(cornerRadius: 6)
+                            isCurrent ? Theme.Color.accent : Theme.Color.surface,
+                            in: RoundedRectangle(cornerRadius: 7, style: .continuous)
                         )
                 }
             }
@@ -243,68 +288,58 @@ struct PracticeView: View {
     // MARK: - Chord Progression
 
     private var chordProgressionContent: some View {
-        VStack(spacing: 16) {
-            // Progression picker
-            Picker("Progression", selection: $vm.selectedProgression) {
-                ForEach(ChordProgression.catalog) { prog in
-                    Text(prog.name).tag(prog)
+        VStack(spacing: 14) {
+            HStack {
+                MicroLabel("Progression")
+                Picker("Progression", selection: $vm.selectedProgression) {
+                    ForEach(ChordProgression.catalog) { prog in
+                        Text(prog.name).tag(prog)
+                    }
                 }
+                .labelsHidden()
+                .frame(maxWidth: 260, alignment: .leading)
+                Spacer()
             }
-            .frame(maxWidth: 300)
 
-            // Current and next chord display
             if !vm.resolvedChords.isEmpty {
-                HStack(spacing: 40) {
-                    // Current chord
-                    VStack(spacing: 4) {
-                        Text("Play")
-                            .font(Theme.Font.caption)
-                            .foregroundStyle(Theme.Color.secondaryText)
-                        Text(vm.targetChord?.name ?? "—")
-                            .font(.system(size: 56, weight: .bold, design: .rounded))
-                            .foregroundStyle(chordColor)
-
-                        // Beat countdown within chord
-                        let remaining = vm.selectedProgression.beatsPerChord - vm.beatsOnCurrentChord
-                        Text("\(remaining) beat\(remaining == 1 ? "" : "s") left")
-                            .font(Theme.Font.caption)
-                            .foregroundStyle(Theme.Color.secondaryText)
+                HStack(spacing: 0) {
+                    statColumn(label: "Play") {
+                        VStack(spacing: 2) {
+                            Text(vm.targetChord?.name ?? "—")
+                                .font(.system(size: 48, weight: .bold, design: .rounded))
+                                .foregroundStyle(chordColor)
+                            let remaining = vm.selectedProgression.beatsPerChord - vm.beatsOnCurrentChord
+                            Text("\(remaining) beat\(remaining == 1 ? "" : "s") left")
+                                .font(Theme.Font.caption)
+                                .foregroundStyle(Theme.Color.secondaryText)
+                                .monospacedDigit()
+                        }
                     }
-
-                    // Divider
-                    Rectangle()
-                        .fill(Theme.Color.secondaryText.opacity(0.3))
-                        .frame(width: 1, height: 60)
-
-                    // Next chord
-                    VStack(spacing: 4) {
-                        Text("Next")
-                            .font(Theme.Font.caption)
-                            .foregroundStyle(Theme.Color.secondaryText)
+                    statDivider
+                    statColumn(label: "Next") {
                         Text(vm.nextChord?.name ?? "—")
-                            .font(.system(size: 32, weight: .medium, design: .rounded))
+                            .font(Theme.Font.statNumber)
                             .foregroundStyle(Theme.Color.secondaryText)
                     }
-
-                    // Detected chord
-                    VStack(spacing: 4) {
-                        Text("Detected")
-                            .font(Theme.Font.caption)
-                            .foregroundStyle(Theme.Color.secondaryText)
+                    statDivider
+                    statColumn(label: "Detected") {
                         Text(vm.detectedChord?.name ?? "—")
-                            .font(.system(size: 28, weight: .medium, design: .rounded))
+                            .font(Theme.Font.statNumber)
                             .foregroundStyle(vm.detectedChord != nil
                                              ? Theme.Color.primaryText
-                                             : Theme.Color.secondaryText)
+                                             : Theme.Color.tertiaryText)
                     }
                 }
 
-                // Chord progression timeline
                 chordTimeline
+            } else {
+                Text("Press play — chords change on the bar line.")
+                    .font(Theme.Font.body)
+                    .foregroundStyle(Theme.Color.secondaryText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .padding(Theme.Metrics.cardPadding)
-        .background(Theme.Color.surface, in: RoundedRectangle(cornerRadius: Theme.Metrics.cornerRadius))
+        .stageCard()
     }
 
     private var chordColor: Color {
@@ -319,116 +354,91 @@ struct PracticeView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
                 ForEach(Array(vm.resolvedChords.enumerated()), id: \.offset) { index, chord in
+                    let isCurrent = index == vm.chordIndex
                     Text(chord.name)
-                        .font(index == vm.chordIndex
-                               ? Theme.Font.heading
-                               : Theme.Font.body)
-                        .foregroundStyle(index == vm.chordIndex
-                                         ? Theme.Color.accent
-                                         : Theme.Color.secondaryText)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
+                        .font(.system(size: isCurrent ? 15 : 13,
+                                      weight: isCurrent ? .bold : .medium,
+                                      design: .rounded))
+                        .foregroundStyle(isCurrent ? Theme.Color.onAccent : Theme.Color.secondaryText)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
                         .background(
-                            index == vm.chordIndex
-                            ? Theme.Color.accent.opacity(0.15)
-                            : Color.clear,
-                            in: RoundedRectangle(cornerRadius: 8)
+                            isCurrent ? Theme.Color.accent : Theme.Color.surface,
+                            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
                         )
                 }
             }
         }
     }
 
-    // MARK: - Metronome Controls
+    // MARK: - Stat column helper
 
-    private var metronomeControls: some View {
-        VStack(spacing: 12) {
-            // BPM slider
-            HStack {
-                Text("Tempo")
-                    .font(Theme.Font.body)
-                    .foregroundStyle(Theme.Color.secondaryText)
-                    .frame(width: 60, alignment: .leading)
+    private func statColumn<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(spacing: 4) {
+            MicroLabel(label)
+            content()
+        }
+        .frame(maxWidth: .infinity)
+    }
 
-                Slider(value: $vm.bpm, in: 40...300, step: 1)
+    private var statDivider: some View {
+        Rectangle()
+            .fill(Theme.Color.hairline)
+            .frame(width: 1, height: 64)
+    }
 
-                // Tap-tempo and fine-tune buttons
-                HStack(spacing: 4) {
-                    Button { vm.bpm = max(40, vm.bpm - 1) } label: {
-                        Image(systemName: "minus")
-                    }
-                    .buttonStyle(.bordered)
+    // MARK: - Sound rack
 
-                    Button { vm.bpm = min(300, vm.bpm + 1) } label: {
-                        Image(systemName: "plus")
-                    }
-                    .buttonStyle(.bordered)
-                }
-            }
+    private var soundCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeader("Sound")
 
-            HStack {
-                // Time signature
+            HStack(spacing: 16) {
                 HStack(spacing: 8) {
-                    Text("Beats")
-                        .font(Theme.Font.body)
-                        .fixedSize()
-                        .foregroundStyle(Theme.Color.secondaryText)
-
+                    MicroLabel("Beats")
                     Picker("Beats per measure", selection: $vm.beatsPerMeasure) {
                         ForEach([2, 3, 4, 5, 6, 7, 8], id: \.self) { n in
                             Text("\(n)").tag(n)
                         }
                     }
                     .labelsHidden()
-                    .frame(width: 60)
+                    .frame(width: 58)
                 }
 
-                Spacer()
+                Divider().frame(height: 22)
 
-                // Click sound
                 HStack(spacing: 8) {
-                    Text("Sound")
-                        .font(Theme.Font.body)
-                        .fixedSize()
-                        .foregroundStyle(Theme.Color.secondaryText)
-
+                    MicroLabel("Click")
                     Picker("Click sound", selection: $vm.clickSound) {
                         ForEach(AudioMetronome.ClickSound.allCases, id: \.self) { sound in
                             Text(sound.rawValue.capitalized).tag(sound)
                         }
                     }
                     .labelsHidden()
-                    .frame(width: 140)
+                    .frame(width: 120)
                 }
 
-                Spacer()
+                Divider().frame(height: 22)
 
-                // Volume
                 HStack(spacing: 8) {
-                    Text("Volume")
-                        .font(Theme.Font.body)
-                        .foregroundStyle(Theme.Color.secondaryText)
-
+                    MicroLabel("Volume")
                     Slider(value: $vm.metronomeVolume, in: 0...1)
-                        .frame(width: 100)
+                        .frame(width: 110)
                 }
 
                 Spacer()
 
-                // Loop toggle
                 Toggle(isOn: $vm.loopEnabled) {
                     Label("Loop", systemImage: "repeat")
                 }
                 .toggleStyle(.button)
             }
 
-            // Drum track row
             HStack(spacing: 12) {
                 Toggle(isOn: $vm.useDrumTrack) {
                     Label("Drum Track", systemImage: "waveform.path")
                 }
                 .toggleStyle(.switch)
-                .frame(width: 180)
 
                 if vm.useDrumTrack {
                     Picker("Pattern", selection: $vm.selectedDrumPattern) {
@@ -436,105 +446,97 @@ struct PracticeView: View {
                             Text(pattern.name).tag(pattern)
                         }
                     }
+                    .labelsHidden()
                     .frame(width: 160)
                 }
 
                 Spacer()
             }
         }
-        .padding(Theme.Metrics.cardPadding)
-        .background(Theme.Color.surface, in: RoundedRectangle(cornerRadius: Theme.Metrics.cornerRadius))
+        .stageCard()
     }
 
     // MARK: - Speed Trainer
 
-    private var speedTrainerSection: some View {
-        VStack(spacing: 8) {
+    private var speedTrainerCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
             Toggle(isOn: $vm.speedTrainerEnabled) {
-                HStack {
-                    Image(systemName: "hare")
+                HStack(spacing: 8) {
+                    Image(systemName: "hare.fill")
+                        .foregroundStyle(Theme.Color.accent)
                     Text("Speed Trainer")
-                        .font(Theme.Font.body)
-                    Text("— auto-increase BPM after successful loops")
+                        .font(Theme.Font.body.weight(.medium))
+                    Text("— BPM climbs after each clean loop")
                         .font(Theme.Font.caption)
                         .foregroundStyle(Theme.Color.secondaryText)
                 }
             }
+            .toggleStyle(.switch)
 
             if vm.speedTrainerEnabled {
-                HStack(spacing: 16) {
-                    HStack(spacing: 4) {
-                        Text("Increment:")
-                            .font(Theme.Font.caption)
-                            .foregroundStyle(Theme.Color.secondaryText)
+                HStack(spacing: 18) {
+                    HStack(spacing: 6) {
+                        MicroLabel("Step")
                         Picker("BPM increment", selection: $vm.bpmIncrement) {
                             ForEach([2.0, 5.0, 10.0, 15.0, 20.0], id: \.self) { inc in
                                 Text("+\(Int(inc))").tag(inc)
                             }
                         }
-                        .frame(width: 70)
+                        .labelsHidden()
+                        .frame(width: 66)
                     }
 
-                    HStack(spacing: 4) {
-                        Text("Max:")
-                            .font(Theme.Font.caption)
-                            .foregroundStyle(Theme.Color.secondaryText)
+                    HStack(spacing: 6) {
+                        MicroLabel("Max")
                         Picker("Max BPM", selection: $vm.maxBpm) {
                             ForEach([150.0, 200.0, 250.0, 300.0], id: \.self) { max in
                                 Text("\(Int(max))").tag(max)
                             }
                         }
-                        .frame(width: 70)
+                        .labelsHidden()
+                        .frame(width: 72)
                     }
 
                     if vm.successfulLoops > 0 {
-                        Text("\(vm.successfulLoops) streak")
-                            .font(Theme.Font.caption)
-                            .foregroundStyle(Theme.Color.inTune)
+                        PillBadge(text: "\(vm.successfulLoops) streak", symbol: "flame.fill", tint: Theme.Color.inTune)
                     }
+
+                    Spacer()
                 }
             }
         }
-        .padding(Theme.Metrics.cardPadding)
-        .background(Theme.Color.surface, in: RoundedRectangle(cornerRadius: Theme.Metrics.cornerRadius))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .stageCard()
     }
 
-    // MARK: - Scoring
+    // MARK: - Score
 
-    private var scoringSection: some View {
-        HStack(spacing: 20) {
-            // Accuracy
-            VStack(spacing: 4) {
-                Text("Accuracy")
-                    .font(Theme.Font.caption)
-                    .foregroundStyle(Theme.Color.secondaryText)
+    private var scoreCard: some View {
+        HStack(spacing: 0) {
+            statColumn(label: "Accuracy") {
                 Text("\(Int(vm.accuracy * 100))%")
-                    .font(Theme.Font.heading)
+                    .font(Theme.Font.statNumber)
                     .foregroundStyle(accuracyColor)
+                    .monospacedDigit()
             }
-
-            VStack(spacing: 4) {
-                Text("Correct")
-                    .font(Theme.Font.caption)
-                    .foregroundStyle(Theme.Color.secondaryText)
+            statDivider
+            statColumn(label: "Correct") {
                 Text("\(vm.correctBeats) / \(vm.totalBeats)")
-                    .font(Theme.Font.body)
+                    .font(Theme.Font.statNumber)
                     .foregroundStyle(Theme.Color.primaryText)
+                    .monospacedDigit()
             }
-
             if vm.speedTrainerEnabled {
-                VStack(spacing: 4) {
-                    Text("Starting BPM")
-                        .font(Theme.Font.caption)
-                        .foregroundStyle(Theme.Color.secondaryText)
+                statDivider
+                statColumn(label: "Tempo") {
                     Text("\(Int(vm.bpm))")
-                        .font(Theme.Font.body)
+                        .font(Theme.Font.statNumber)
                         .foregroundStyle(Theme.Color.primaryText)
+                        .monospacedDigit()
                 }
             }
         }
-        .padding(Theme.Metrics.cardPadding)
-        .background(Theme.Color.surface, in: RoundedRectangle(cornerRadius: Theme.Metrics.cornerRadius))
+        .stageCard()
     }
 
     private var accuracyColor: Color {
@@ -543,6 +545,66 @@ struct PracticeView: View {
         if acc >= 0.7 { return Theme.Color.nearInTune }
         if acc >= 0.5 { return Theme.Color.outOfTune }
         return Theme.Color.farOutOfTune
+    }
+}
+
+// MARK: - Play Button
+
+/// The transport's centerpiece: a 68 pt disc, mint with a dark glyph when
+/// armed, red-tinted when running, with a ring that breathes outward on the
+/// running state (motion-disabled users get a static ring).
+private struct PlayButton: View {
+    let isRunning: Bool
+    let action: () -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var pulsing = false
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                // Breathing ring while running.
+                Circle()
+                    .stroke(Theme.Color.farOutOfTune.opacity(pulsing ? 0.0 : 0.5), lineWidth: 2)
+                    .frame(width: 68, height: 68)
+                    .scaleEffect(pulsing ? 1.35 : 1.0)
+                    .opacity(isRunning ? 1 : 0)
+
+                Circle()
+                    .fill(
+                        isRunning
+                            ? LinearGradient(colors: [Theme.Color.farOutOfTune.opacity(0.9),
+                                                      Theme.Color.farOutOfTune.opacity(0.7)],
+                                             startPoint: .top, endPoint: .bottom)
+                            : LinearGradient(colors: [Theme.Color.accent, Theme.Color.accentDeep],
+                                             startPoint: .top, endPoint: .bottom)
+                    )
+                    .frame(width: 68, height: 68)
+                    .shadow(color: (isRunning ? Theme.Color.farOutOfTune : Theme.Color.accent).opacity(0.45),
+                            radius: 14, y: 4)
+
+                Image(systemName: isRunning ? "stop.fill" : "play.fill")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(isRunning ? .white : Theme.Color.onAccent)
+                    .offset(x: isRunning ? 0 : 2)
+            }
+            .frame(width: 92, height: 92)
+            .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .keyboardShortcut(.space, modifiers: [])
+        .onAppear { updatePulse() }
+        .onChange(of: isRunning) { _, _ in updatePulse() }
+    }
+
+    private func updatePulse() {
+        guard isRunning, !reduceMotion else {
+            pulsing = false
+            return
+        }
+        withAnimation(.easeOut(duration: 1.1).repeatForever(autoreverses: false)) {
+            pulsing = true
+        }
     }
 }
 
@@ -563,12 +625,13 @@ private struct BeatDot: View {
         Circle()
             .fill(dotColor)
             .frame(width: dotSize, height: dotSize)
-            .scaleEffect(isActive ? 1.3 : 1.0)
+            .shadow(color: isActive ? dotColor.opacity(0.8) : .clear, radius: 8)
+            .scaleEffect(isActive ? 1.25 : 1.0)
             .animation(.easeOut(duration: 0.1), value: isActive)
     }
 
     private var dotSize: CGFloat {
-        isAccent ? 20 : 14
+        isAccent ? 22 : 15
     }
 
     private var dotColor: Color {
@@ -577,10 +640,11 @@ private struct BeatDot: View {
                 ? Theme.Color.nearInTune
                 : (isAccent ? Theme.Color.accent : Theme.Color.inTune)
         }
-        return Theme.Color.secondaryText.opacity(0.3)
+        return Theme.Color.secondaryText.opacity(0.28)
     }
 }
 
 #Preview {
     PracticeView(detector: MockPitchDetector())
+        .frame(width: 860, height: 720)
 }

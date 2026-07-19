@@ -2,6 +2,10 @@ import SwiftUI
 
 /// Interactive fretboard: pick a key and scale, see every in-scale note on the
 /// neck with its degree label, and watch the note you're playing light up.
+///
+/// The neck is drawn as an instrument: deep-indigo ebony, a pearl nut and
+/// pearl position inlays, metal fret wire — the same material language as
+/// the sidebar. Roots glow aurora mint; the note you're playing blooms green.
 struct FretboardView: View {
     @State private var viewModel: FretboardViewModel
 
@@ -17,15 +21,15 @@ struct FretboardView: View {
     var body: some View {
         VStack(spacing: 0) {
             controlBar
-                .padding(.horizontal, Theme.Metrics.cardPadding)
-                .padding(.top, Theme.Metrics.sectionSpacing)
+                .padding(.horizontal, Theme.Metrics.pagePadding)
+                .padding(.top, Theme.Metrics.controlSpacing)
                 .padding(.bottom, 12)
 
             HStack(alignment: .top, spacing: Theme.Metrics.sectionSpacing) {
                 // Fretboard + scale info (takes priority width)
-                VStack(spacing: 0) {
+                VStack(spacing: Theme.Metrics.sectionSpacing) {
                     FretboardCanvas(viewModel: viewModel)
-                        .padding(.bottom, Theme.Metrics.sectionSpacing)
+                        .stageCard(padding: 18)
 
                     scaleInfoBar
                 }
@@ -39,14 +43,15 @@ struct FretboardView: View {
                         activePitchClass: viewModel.activePitchClass,
                         scalePitchClasses: viewModel.scalePitchClasses
                     )
-                    .frame(width: 280)
+                    .frame(width: 284)
+                    .stageCard(padding: 16)
                     .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
-            .padding(.horizontal, Theme.Metrics.cardPadding)
-            .padding(.bottom, Theme.Metrics.sectionSpacing)
+            .padding(.horizontal, Theme.Metrics.pagePadding)
+            .padding(.bottom, Theme.Metrics.pagePadding)
 
-            Spacer()
+            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task { await viewModel.start() }
@@ -56,173 +61,209 @@ struct FretboardView: View {
     // MARK: - Control bar
 
     private var controlBar: some View {
-        HStack(spacing: 16) {
-            // Root picker
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Key")
-                    .font(Theme.Font.caption)
-                    .foregroundStyle(Theme.Color.secondaryText)
+        HStack(spacing: 0) {
+            toolbarField(label: "Key") {
                 Picker("Key", selection: $viewModel.selectedRoot) {
                     ForEach(PitchClass.allCases, id: \.self) { pc in
-                        Text(pc.name(preferring: viewModel.accidental))
-                            .tag(pc)
+                        Text(pc.name(preferring: viewModel.accidental)).tag(pc)
                     }
                 }
-                .labelsHidden()
-                .frame(width: 70)
+                .frame(width: 62)
             }
-
-            // Scale picker
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Scale")
-                    .font(Theme.Font.caption)
-                    .foregroundStyle(Theme.Color.secondaryText)
+            toolbarDivider
+            toolbarField(label: "Scale") {
                 Picker("Scale", selection: $viewModel.selectedScale) {
                     ForEach(Scale.catalog) { scale in
                         Text(scale.name).tag(scale)
                     }
                 }
-                .labelsHidden()
-                .frame(width: 160)
+                .frame(width: 150)
             }
-
-            // Tuning picker
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Tuning")
-                    .font(Theme.Font.caption)
-                    .foregroundStyle(Theme.Color.secondaryText)
+            toolbarDivider
+            toolbarField(label: "Tuning") {
                 Picker("Tuning", selection: $viewModel.selectedTuning) {
                     ForEach(Tuning.catalog) { tuning in
                         Text(tuning.name).tag(tuning)
                     }
                 }
-                .labelsHidden()
-                .frame(width: 180)
+                .frame(width: 160)
             }
-
-            // Accidental toggle
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Accidentals")
-                    .font(Theme.Font.caption)
-                    .fixedSize()
-                    .foregroundStyle(Theme.Color.secondaryText)
+            toolbarDivider
+            toolbarField(label: "Accidentals") {
                 Picker("Accidentals", selection: $viewModel.accidental) {
                     Text("♯").tag(Accidental.sharp)
                     Text("♭").tag(Accidental.flat)
                 }
                 .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(width: 80)
+                .frame(width: 76)
             }
 
-            Spacer()
+            Spacer(minLength: 12)
 
             // Chord detection toggle
-            Button {
+            toolbarToggle(
+                isOn: viewModel.showChordDetection,
+                label: "Chords",
+                onSymbol: "pianokeys.inverse",
+                offSymbol: "pianokeys",
+                help: "Toggle chord detection"
+            ) {
                 withAnimation(.snappy(duration: 0.25)) {
                     viewModel.showChordDetection.toggle()
                 }
-            } label: {
-                Label("Chords",
-                      systemImage: viewModel.showChordDetection
-                      ? "pianokeys.inverse" : "pianokeys")
             }
-            .buttonStyle(.borderless)
-            .foregroundStyle(viewModel.showChordDetection ? Theme.Color.accent : Theme.Color.secondaryText)
-            .help("Toggle chord detection")
 
             // Circle of fifths toggle
-            Button {
+            toolbarToggle(
+                isOn: showCircleOfFifths,
+                label: "5ths",
+                onSymbol: "circle.circle.fill",
+                offSymbol: "circle.circle",
+                help: "Toggle Circle of Fifths"
+            ) {
                 withAnimation(.snappy(duration: 0.25)) {
                     showCircleOfFifths.toggle()
                 }
-            } label: {
-                Label("Circle of 5ths",
-                      systemImage: showCircleOfFifths ? "circle.circle.fill" : "circle.circle")
             }
-            .buttonStyle(.borderless)
-            .foregroundStyle(showCircleOfFifths ? Theme.Color.accent : Theme.Color.secondaryText)
-            .help("Toggle Circle of Fifths")
 
             // Detected chord display
             if viewModel.showChordDetection {
                 if let chord = viewModel.detectedChord {
-                    HStack(spacing: 4) {
-                        Image(systemName: "guitars.fill")
-                            .font(.system(size: 12))
-                            .foregroundStyle(Theme.Color.accent)
+                    HStack(spacing: 6) {
                         Text(chord.name)
                             .font(Theme.Font.heading)
                             .pearlStatic()
                         Text("\(Int(viewModel.chordConfidence * 100))%")
                             .font(Theme.Font.caption)
                             .foregroundStyle(Theme.Color.secondaryText)
+                            .monospacedDigit()
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Theme.Color.accent.opacity(0.12))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Theme.Color.accentSoft, in: RoundedRectangle(cornerRadius: Theme.Metrics.radiusInner, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Theme.Metrics.radiusInner, style: .continuous)
+                            .strokeBorder(Theme.Color.accent.opacity(0.35), lineWidth: 1)
+                    )
+                    .padding(.leading, 8)
                 } else {
-                    Text("No chord")
-                        .font(Theme.Font.caption)
-                        .foregroundStyle(Theme.Color.secondaryText)
+                    Text("—")
+                        .font(Theme.Font.heading)
+                        .foregroundStyle(Theme.Color.tertiaryText)
+                        .padding(.leading, 8)
                 }
             }
 
             // Live indicator
             if viewModel.isListening {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(viewModel.activePitchClass != nil
-                              ? Theme.Color.inTune
-                              : Theme.Color.secondaryText.opacity(0.4))
-                        .frame(width: 8, height: 8)
-                    if let note = viewModel.activeNote {
-                        Text(note.name(preferring: viewModel.accidental))
-                            .font(Theme.Font.mono)
-                            .foregroundStyle(Theme.Color.primaryText)
-                            .monospacedDigit()
-                    } else {
-                        Text("Listening")
-                            .font(Theme.Font.caption)
-                            .fixedSize()
-                            .foregroundStyle(Theme.Color.secondaryText)
-                    }
-                }
+                PillBadge(
+                    text: viewModel.activeNote?.name(preferring: viewModel.accidental) ?? "LISTENING",
+                    symbol: "circle.fill",
+                    tint: viewModel.activePitchClass != nil ? Theme.Color.inTune : Theme.Color.secondaryText
+                )
+                .padding(.leading, 8)
             }
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .stageCard(padding: 0)
+    }
+
+    private func toolbarField<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            MicroLabel(label)
+            content()
+                .labelsHidden()
+        }
+        .padding(.horizontal, 10)
+    }
+
+    private var toolbarDivider: some View {
+        Rectangle()
+            .fill(Theme.Color.hairline)
+            .frame(width: 1, height: 34)
+    }
+
+    private func toolbarToggle(
+        isOn: Bool,
+        label: String,
+        onSymbol: String,
+        offSymbol: String,
+        help: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(spacing: 3) {
+                Image(systemName: isOn ? onSymbol : offSymbol)
+                    .font(.system(size: 15))
+                Text(label)
+                    .font(Theme.Font.microLabel)
+                    .tracking(1.2)
+            }
+            .foregroundStyle(isOn ? Theme.Color.accent : Theme.Color.tertiaryText)
+            .frame(width: 52)
+            .padding(.vertical, 4)
+            .background(
+                isOn ? Theme.Color.accentSoft : Color.clear,
+                in: RoundedRectangle(cornerRadius: Theme.Metrics.radiusInner, style: .continuous)
+            )
+        }
+        .buttonStyle(.plain)
+        .help(help)
     }
 
     // MARK: - Scale info
 
     private var scaleInfoBar: some View {
-        HStack(spacing: 12) {
-            let pcs = viewModel.selectedScale.pitchClasses(in: viewModel.selectedRoot)
-            ForEach(Array(pcs.enumerated()), id: \.offset) { index, pc in
-                let degree = viewModel.scaleDegreeMap[pc] ?? ""
-                VStack(spacing: 2) {
-                    Text(degree)
-                        .font(Theme.Font.caption)
-                        .foregroundStyle(Theme.Color.secondaryText)
-                    Text(pc.name(preferring: viewModel.accidental))
-                        .font(Theme.Font.body.weight(.medium))
-                        .foregroundStyle(
-                            pc == viewModel.selectedRoot
-                                ? Theme.Color.accent
-                                : Theme.Color.primaryText
-                        )
-                }
-                .padding(.horizontal, 6)
-                .padding(.vertical, 4)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(pc == viewModel.activePitchClass
-                              ? Theme.Color.accent.opacity(0.2)
-                              : Color.clear)
-                )
+        VStack(alignment: .leading, spacing: 10) {
+            SectionHeader("\(viewModel.selectedRoot.name(preferring: viewModel.accidental)) \(viewModel.selectedScale.name)") {
+                Text("\(viewModel.scalePitchClasses.count) notes")
+                    .font(Theme.Font.caption)
+                    .foregroundStyle(Theme.Color.tertiaryText)
             }
-            Spacer()
+
+            HStack(spacing: 8) {
+                let pcs = viewModel.selectedScale.pitchClasses(in: viewModel.selectedRoot)
+                ForEach(Array(pcs.enumerated()), id: \.offset) { index, pc in
+                    let degree = viewModel.scaleDegreeMap[pc] ?? ""
+                    let isRoot = pc == viewModel.selectedRoot
+                    let isActive = pc == viewModel.activePitchClass
+
+                    VStack(spacing: 2) {
+                        Text(degree)
+                            .font(Theme.Font.microLabel)
+                            .foregroundStyle(isActive ? Theme.Color.inTune : Theme.Color.tertiaryText)
+                        Text(pc.name(preferring: viewModel.accidental))
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .foregroundStyle(
+                                isActive ? Theme.Color.inTune
+                                    : isRoot ? Theme.Color.accent
+                                    : Theme.Color.primaryText
+                            )
+                    }
+                    .frame(width: 44)
+                    .padding(.vertical, 7)
+                    .background(
+                        isActive ? Theme.Color.inTune.opacity(0.14)
+                            : isRoot ? Theme.Color.accentSoft
+                            : Color.clear,
+                        in: RoundedRectangle(cornerRadius: Theme.Metrics.radiusInner, style: .continuous)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Theme.Metrics.radiusInner, style: .continuous)
+                            .strokeBorder(
+                                isActive ? Theme.Color.inTune.opacity(0.5)
+                                    : isRoot ? Theme.Color.accent.opacity(0.4)
+                                    : Color.clear,
+                                lineWidth: 1
+                            )
+                    )
+                    .animation(.snappy(duration: 0.18), value: isActive)
+                }
+                Spacer()
+            }
         }
+        .stageCard(padding: 16)
     }
 }
 
@@ -230,14 +271,19 @@ struct FretboardView: View {
 
 /// Pure `Canvas` rendering of the fretboard. Strings run horizontally, frets
 /// vertically, low E at the bottom (visual convention for tab/diagrams).
+///
+/// Materials: indigo "ebony" neck with a top sheen, pearl nut and position
+/// inlays, cream fret wire and strings. Note dots are soft glowing discs —
+/// mint for roots, pearl ghosts for scale tones, green for what you're
+/// playing, amber for detected chord tones.
 private struct FretboardCanvas: View {
     let viewModel: FretboardViewModel
 
     /// Layout constants
-    private let nutWidth: CGFloat = 6
+    private let nutWidth: CGFloat = 7
     private let stringSpacing: CGFloat = 28
     private let topPadding: CGFloat = 40   // room for fret numbers
-    private let leftPadding: CGFloat = 40  // room for string labels
+    private let leftPadding: CGFloat = 56  // room for string labels + open dots
     private let dotRadius: CGFloat = 11
     private let fretInlays: Set<Int> = [3, 5, 7, 9, 12, 15, 17, 19, 21]
     private let doubleInlays: Set<Int> = [12]
@@ -251,20 +297,21 @@ private struct FretboardCanvas: View {
 
     var body: some View {
         Canvas { context, size in
-            let neckWidth = size.width - leftPadding - 20
+            let neckWidth = size.width - leftPadding - 28
             let fretSpacings = fretSpacings(neckWidth: neckWidth)
             let yOrigin = topPadding
             let xOrigin = leftPadding
 
+            drawNeck(context: context, x: xOrigin, y: yOrigin, neckWidth: neckWidth)
+            drawInlays(context: context, x: xOrigin, y: yOrigin, spacings: fretSpacings)
             drawNut(context: context, x: xOrigin, y: yOrigin)
             drawFrets(context: context, x: xOrigin, y: yOrigin, spacings: fretSpacings)
             drawStrings(context: context, x: xOrigin, y: yOrigin, neckWidth: neckWidth)
-            drawInlays(context: context, x: xOrigin, y: yOrigin, spacings: fretSpacings)
             drawFretNumbers(context: context, x: xOrigin, y: yOrigin, spacings: fretSpacings)
             drawStringLabels(context: context, x: xOrigin, y: yOrigin)
             drawNotes(context: context, x: xOrigin, y: yOrigin, spacings: fretSpacings)
         }
-        .frame(height: topPadding + neckHeight + 30)
+        .frame(height: topPadding + neckHeight + 32)
     }
 
     // MARK: - Fret spacing (realistic: wider near nut, narrower near body)
@@ -284,7 +331,7 @@ private struct FretboardCanvas: View {
     /// X center of a fret position (between fret n-1 and fret n). Fret 0 = open (behind nut).
     private func fretCenterX(fret: Int, xOrigin: CGFloat, spacings: [CGFloat]) -> CGFloat {
         if fret == 0 {
-            return xOrigin - 14  // open-string dot sits behind the nut
+            return xOrigin - 16  // open-string dot sits behind the nut
         }
         let xAfterNut = xOrigin + nutWidth
         let left = fret == 1 ? 0 : spacings[fret - 2]
@@ -297,12 +344,46 @@ private struct FretboardCanvas: View {
         yOrigin + CGFloat(stringCount - 1 - string) * stringSpacing
     }
 
-    // MARK: - Drawing
+    // MARK: - Neck material
+
+    private func drawNeck(context: GraphicsContext, x: CGFloat, y: CGFloat, neckWidth: CGFloat) {
+        // The board extends past the nut to catch the open-string dots, and
+        // past the last fret wire toward the body.
+        let rect = CGRect(
+            x: x - 32,
+            y: y - 15,
+            width: neckWidth + 32 + 16,
+            height: neckHeight + 30
+        )
+        let neckPath = Path(roundedRect: rect, cornerRadius: 10, style: .continuous)
+
+        context.fill(neckPath, with: .linearGradient(
+            Gradient(colors: [Theme.Color.neckTop, Theme.Color.neckBottom]),
+            startPoint: CGPoint(x: rect.minX, y: rect.minY),
+            endPoint: CGPoint(x: rect.minX, y: rect.maxY)
+        ))
+
+        // Soft top sheen — stage light raking across the ebony.
+        context.fill(neckPath, with: .linearGradient(
+            Gradient(colors: [Color.white.opacity(0.06), Color.white.opacity(0.0)]),
+            startPoint: CGPoint(x: rect.minX, y: rect.minY),
+            endPoint: CGPoint(x: rect.minX, y: rect.minY + rect.height * 0.55)
+        ))
+
+        context.stroke(neckPath, with: .color(.white.opacity(0.09)), lineWidth: 1)
+    }
 
     private func drawNut(context: GraphicsContext, x: CGFloat, y: CGFloat) {
-        let rect = CGRect(x: x, y: y - 2, width: nutWidth, height: neckHeight + 4)
-        context.fill(Path(roundedRect: rect, cornerRadius: 2),
-                     with: .color(.primary.opacity(0.8)))
+        let rect = CGRect(x: x, y: y - 3, width: nutWidth, height: neckHeight + 6)
+        // The nut is bone on a real guitar — pearl suits it here.
+        context.fill(
+            Path(roundedRect: rect, cornerRadius: 2.5),
+            with: .linearGradient(
+                Gradient(colors: Pearlescent.bandColors),
+                startPoint: CGPoint(x: rect.minX, y: rect.minY),
+                endPoint: CGPoint(x: rect.maxX, y: rect.maxY)
+            )
+        )
     }
 
     private func drawFrets(context: GraphicsContext, x: CGFloat, y: CGFloat, spacings: [CGFloat]) {
@@ -312,7 +393,11 @@ private struct FretboardCanvas: View {
             var path = Path()
             path.move(to: CGPoint(x: fx, y: y - 2))
             path.addLine(to: CGPoint(x: fx, y: y + neckHeight + 2))
-            context.stroke(path, with: .color(.primary.opacity(0.2)), lineWidth: 1.5)
+            context.stroke(
+                path,
+                with: .color(Theme.Color.sidebarString.opacity(0.26)),
+                style: StrokeStyle(lineWidth: 1.5, lineCap: .round)
+            )
         }
     }
 
@@ -322,45 +407,54 @@ private struct FretboardCanvas: View {
             // Thicker strings for lower pitches.
             let thickness: CGFloat = CGFloat(stringCount - s) * 0.4 + 0.6
             var path = Path()
-            path.move(to: CGPoint(x: x, y: sy))
-            path.addLine(to: CGPoint(x: x + neckWidth, y: sy))
-            context.stroke(path, with: .color(.primary.opacity(0.35)), lineWidth: thickness)
+            path.move(to: CGPoint(x: x - 28, y: sy))
+            path.addLine(to: CGPoint(x: x + neckWidth + 12, y: sy))
+            context.stroke(
+                path,
+                with: .color(Theme.Color.sidebarString.opacity(0.42)),
+                lineWidth: thickness
+            )
         }
     }
 
     private func drawInlays(context: GraphicsContext, x: CGFloat, y: CGFloat, spacings: [CGFloat]) {
         let centerY = y + neckHeight / 2
-        let inlayRadius: CGFloat = 4
+        let inlayRadius: CGFloat = 5
 
         for fret in 1...fretCount where fretInlays.contains(fret) {
             let cx = fretCenterX(fret: fret, xOrigin: x, spacings: spacings)
             if doubleInlays.contains(fret) {
                 // Double dot at 12th fret
                 let offset = stringSpacing * 1.5
-                context.fill(Circle().path(in: CGRect(
-                    x: cx - inlayRadius, y: centerY - offset - inlayRadius,
-                    width: inlayRadius * 2, height: inlayRadius * 2)),
-                    with: .color(.primary.opacity(0.12)))
-                context.fill(Circle().path(in: CGRect(
-                    x: cx - inlayRadius, y: centerY + offset - inlayRadius,
-                    width: inlayRadius * 2, height: inlayRadius * 2)),
-                    with: .color(.primary.opacity(0.12)))
+                for dy in [-offset, offset] {
+                    drawPearlInlay(context: context, at: CGPoint(x: cx, y: centerY + dy), radius: inlayRadius)
+                }
             } else {
-                context.fill(Circle().path(in: CGRect(
-                    x: cx - inlayRadius, y: centerY - inlayRadius,
-                    width: inlayRadius * 2, height: inlayRadius * 2)),
-                    with: .color(.primary.opacity(0.12)))
+                drawPearlInlay(context: context, at: CGPoint(x: cx, y: centerY), radius: inlayRadius)
             }
         }
+    }
+
+    private func drawPearlInlay(context: GraphicsContext, at point: CGPoint, radius: CGFloat) {
+        let rect = CGRect(x: point.x - radius, y: point.y - radius,
+                          width: radius * 2, height: radius * 2)
+        context.fill(
+            Circle().path(in: rect),
+            with: .linearGradient(
+                Gradient(colors: Pearlescent.bandColors.map { $0.opacity(0.55) }),
+                startPoint: CGPoint(x: rect.minX, y: rect.minY),
+                endPoint: CGPoint(x: rect.maxX, y: rect.maxY)
+            )
+        )
     }
 
     private func drawFretNumbers(context: GraphicsContext, x: CGFloat, y: CGFloat, spacings: [CGFloat]) {
         for fret in 1...fretCount where fretInlays.contains(fret) {
             let cx = fretCenterX(fret: fret, xOrigin: x, spacings: spacings)
             let text = Text("\(fret)")
-                .font(Theme.Font.caption)
-                .foregroundColor(Theme.Color.secondaryText)
-            context.draw(text, at: CGPoint(x: cx, y: y - 16), anchor: .center)
+                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                .foregroundColor(Theme.Color.tertiaryText)
+            context.draw(text, at: CGPoint(x: cx, y: y - 26), anchor: .center)
         }
     }
 
@@ -370,9 +464,9 @@ private struct FretboardCanvas: View {
             let note = viewModel.fretboard.tuning.openStrings[s]
             let label = note.pitchClass.name(preferring: viewModel.accidental)
             let text = Text(label)
-                .font(Theme.Font.caption.weight(.medium))
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .foregroundColor(Theme.Color.secondaryText)
-            context.draw(text, at: CGPoint(x: x - 20, y: sy), anchor: .center)
+            context.draw(text, at: CGPoint(x: x - 44, y: sy), anchor: .center)
         }
     }
 
@@ -391,50 +485,65 @@ private struct FretboardCanvas: View {
                 let isChordRoot = chordMode && viewModel.isChordRoot(string: s, fret: f)
                 let degree = viewModel.degreeLabel(string: s, fret: f) ?? ""
 
-                // Dot color — chord tones get special treatment
+                // Dot color — active (what you're playing) always wins, then
+                // chord overlay, then scale roots, then ghost scale tones.
                 let fillColor: Color
+                let textColor: Color
                 if isActive {
                     fillColor = Theme.Color.inTune
+                    textColor = Theme.Color.onAccent
                 } else if isChordRoot {
                     fillColor = Theme.Color.nearInTune
+                    textColor = Theme.Color.onAccent
                 } else if isChordTone {
-                    fillColor = Theme.Color.nearInTune.opacity(0.6)
+                    fillColor = Theme.Color.nearInTune.opacity(0.65)
+                    textColor = Theme.Color.onAccent
                 } else if isRoot {
                     fillColor = Theme.Color.accent
+                    textColor = Theme.Color.onAccent
                 } else {
-                    fillColor = Theme.Color.primaryText.opacity(chordMode ? 0.06 : 0.15)
+                    fillColor = Theme.Color.primaryText.opacity(chordMode ? 0.05 : 0.14)
+                    textColor = Theme.Color.primaryText.opacity(chordMode ? 0.35 : 0.75)
                 }
 
-                // Dot
+                // Radius bumps for emphasis.
                 let r: CGFloat
                 if isActive {
-                    r = dotRadius + 2
+                    r = dotRadius + 2.5
                 } else if isChordTone || isChordRoot {
                     r = dotRadius + 1
                 } else {
                     r = dotRadius
                 }
+
+                // Glow halo under emphasized dots.
+                if isActive {
+                    let glowRect = CGRect(x: cx - r - 7, y: cy - r - 7,
+                                          width: (r + 7) * 2, height: (r + 7) * 2)
+                    context.fill(Circle().path(in: glowRect),
+                                 with: .color(Theme.Color.inTune.opacity(0.22)))
+                } else if isRoot && !chordMode {
+                    let glowRect = CGRect(x: cx - r - 5, y: cy - r - 5,
+                                          width: (r + 5) * 2, height: (r + 5) * 2)
+                    context.fill(Circle().path(in: glowRect),
+                                 with: .color(Theme.Color.accent.opacity(0.14)))
+                }
+
                 let dotRect = CGRect(x: cx - r, y: cy - r, width: r * 2, height: r * 2)
                 context.fill(Circle().path(in: dotRect), with: .color(fillColor))
 
-                // Outline for root notes or chord root
+                // Ring for roots (scale or chord) that aren't being played.
                 if isChordRoot && !isActive {
-                    context.stroke(Circle().path(in: dotRect),
-                                   with: .color(Theme.Color.nearInTune),
-                                   lineWidth: 2)
+                    context.stroke(Circle().path(in: dotRect.insetBy(dx: -2, dy: -2)),
+                                   with: .color(Theme.Color.nearInTune.opacity(0.8)),
+                                   lineWidth: 1.5)
                 } else if isRoot && !isActive {
-                    context.stroke(Circle().path(in: dotRect),
-                                   with: .color(Theme.Color.accent),
-                                   lineWidth: 2)
+                    context.stroke(Circle().path(in: dotRect.insetBy(dx: -2, dy: -2)),
+                                   with: .color(Theme.Color.accent.opacity(0.7)),
+                                   lineWidth: 1.5)
                 }
 
-                // Degree label text
-                let textColor: Color
-                if isRoot || isActive || isChordTone || isChordRoot {
-                    textColor = .white
-                } else {
-                    textColor = Theme.Color.primaryText.opacity(0.8)
-                }
+                // Degree label
                 let text = Text(degree)
                     .font(.system(size: 10, weight: .semibold, design: .rounded))
                     .foregroundColor(textColor)
@@ -448,5 +557,5 @@ private struct FretboardCanvas: View {
 
 #Preview {
     FretboardView(detector: MockPitchDetector())
-        .frame(width: 1000, height: 400)
+        .frame(width: 1100, height: 480)
 }

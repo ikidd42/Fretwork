@@ -23,6 +23,10 @@ final class TunerViewModel {
     /// Smoothed frequency from above-threshold readings. `nil` while we have no signal.
     private(set) var smoothedFrequency: Double?
 
+    /// Raw input amplitude from the most recent detector callback, whether or
+    /// not it cleared the gate — the UI's input-level meter reads this.
+    private(set) var inputLevel: Double = 0
+
     var smoothedNote: Note? {
         guard let f = smoothedFrequency, let r = Note.nearest(to: f) else { return nil }
         return r.note
@@ -97,6 +101,8 @@ final class TunerViewModel {
     // MARK: - Private
 
     private func ingest(_ reading: DetectedPitch) {
+        inputLevel = reading.amplitude
+
         guard reading.amplitude > amplitudeThreshold,
               reading.frequency.isFinite,
               reading.frequency > minFrequency,

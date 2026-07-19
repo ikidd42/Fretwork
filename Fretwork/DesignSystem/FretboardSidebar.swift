@@ -132,7 +132,7 @@ struct FretboardSidebar: View {
                             .shadow(color: Theme.Color.inlay.opacity(0.65), radius: 9)
                     } else {
                         Circle()
-                            .fill(Theme.Color.sidebarString.opacity(0.10))
+                            .fill(Theme.Color.sidebarString.opacity(isHovered ? 0.16 : 0.10))
                             .frame(width: 34, height: 34)
                     }
                     Image(systemName: section.symbolName)
@@ -158,8 +158,9 @@ struct FretboardSidebar: View {
             .padding(.horizontal, 14)
             .contentShape(Rectangle())
             .background(
-                Rectangle()
+                RoundedRectangle(cornerRadius: Theme.Metrics.radiusInner, style: .continuous)
                     .fill(Theme.Color.sidebarString.opacity(isHovered && !isSelected ? 0.07 : 0))
+                    .padding(.horizontal, 6)
             )
         }
         .buttonStyle(.plain)

@@ -20,7 +20,7 @@ struct RootView: View {
         } detail: {
             detail
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(detailBackground)
+                .background(StageBackdrop())
         }
         // The sidebar header already says "Fretwork"; the window title
         // tracks the active section instead.
@@ -33,26 +33,6 @@ struct RootView: View {
                 audioToolbarButton
             }
         }
-    }
-
-    /// The stage behind every page: deep indigo falling darker toward the
-    /// bottom, with a faint cool glow up top — like stage lighting on a
-    /// dark backdrop. Content cards float on `Theme.Color.surface` lifts.
-    private var detailBackground: some View {
-        LinearGradient(
-            colors: [Theme.Color.backgroundTop, Theme.Color.backgroundBottom],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-        .overlay(
-            RadialGradient(
-                colors: [Color.white.opacity(0.05), .clear],
-                center: .init(x: 0.5, y: -0.1),
-                startRadius: 0,
-                endRadius: 560
-            )
-        )
-        .ignoresSafeArea()
     }
 
     private var sidebarToggleButton: some View {
@@ -86,6 +66,9 @@ struct RootView: View {
         } label: {
             Label("Audio", systemImage: audioToolbarSymbol)
         }
+        // A lit channel strip: mint while monitoring routes audio, so the
+        // routing state is visible even with the popover closed.
+        .tint(audioSettings.isMonitoringEnabled ? Theme.Color.accent : nil)
         .help("Input device and monitoring")
         .popover(isPresented: $showingAudioPopover, arrowEdge: .top) {
             AudioControlsView(settings: audioSettings)
