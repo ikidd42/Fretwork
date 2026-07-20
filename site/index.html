@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fretwork — a macOS guitar practice app that listens</title>
+  <meta name="description" content="Real-time tuner, live chord detection, interactive fretboard, and flash cards you answer by playing. SwiftUI + Core Audio, zero dependencies.">
+  <style>
+    /*
+      ── Night Stage design tokens (from the app's Theme.swift) ──────────
+      Placeholder page — replace freely, but these are the brand values:
+
+      stage gradient:   #1D1C45 → #151434 → #0C0B20   (top → mid → bottom)
+      card lift:        rgba(255,255,255,0.055), hairline rgba(255,255,255,0.08)
+      primary text:     #F5F2E6 (cream)   secondary: 58%   tertiary: 36%
+      accent (mint):    #9EEBCC   deep: #6BC29E   on-accent: #12172A
+      pearl bands:      #FAF2D6 #F7CCD9 #C2F0DB #C2DEFA #E0CFFA (cream/blush/mint/ice/lavender)
+      tuning feedback:  in-tune #4DE07A · near #FFD95A · off #FFA342 · far #FF615C
+      type:             system rounded (SF Rounded in-app); wide-tracked
+                        uppercase micro-labels for section headers
+    */
+    :root {
+      --stage-top: #1d1c45;
+      --stage-mid: #151434;
+      --stage-bottom: #0c0b20;
+      --cream: #f5f2e6;
+      --mint: #9eebcc;
+      --hairline: rgba(255, 255, 255, 0.08);
+      --lift: rgba(255, 255, 255, 0.055);
+    }
+    * { margin: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(180deg, var(--stage-top), var(--stage-mid) 55%, var(--stage-bottom));
+      color: var(--cream);
+      font-family: ui-rounded, -apple-system, "SF Pro Rounded", system-ui, sans-serif;
+      text-align: center;
+      padding: 48px 24px;
+    }
+    main { max-width: 820px; }
+    .micro {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(245, 242, 230, 0.36);
+    }
+    h1 {
+      margin: 14px 0 10px;
+      font-size: clamp(40px, 7vw, 64px);
+      letter-spacing: 0.04em;
+      background: linear-gradient(120deg, #faf2d6, #f7ccd9, #c2f0db, #c2defa, #e0cffa, #faf2d6);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    p.tag { color: rgba(245, 242, 230, 0.58); font-size: 18px; line-height: 1.5; }
+    .shot {
+      margin: 36px auto 28px;
+      max-width: 640px;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--hairline);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    }
+    .shot img { display: block; width: 100%; height: auto; }
+    a.button {
+      display: inline-block;
+      padding: 12px 22px;
+      border-radius: 10px;
+      background: var(--mint);
+      color: #12172a;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    a.plain { color: var(--mint); text-decoration: none; margin-left: 18px; }
+    footer { margin-top: 40px; font-size: 13px; color: rgba(245, 242, 230, 0.36); }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="micro">Coming soon</div>
+    <h1>Fretwork</h1>
+    <p class="tag">
+      A macOS guitar practice app that listens — real-time tuner, live chord
+      detection, an interactive fretboard, and flash cards you answer by playing.
+      SwiftUI + Core Audio, zero dependencies.
+    </p>
+
+    <div class="shot">
+      <img src="assets/tuner.png" alt="Fretwork's tuner: a halo gauge around the detected note, per-string targets, input meter, and stability trail">
+    </div>
+
+    <a class="button" href="https://github.com/ikidd42/Fretwork">View on GitHub</a>
+    <a class="plain" href="https://github.com/ikidd42/Fretwork#readme">Read the story →</a>
+
+    <footer>MIT licensed · built with Swift, a guitar, and a stack of AI pair programmers</footer>
+  </main>
+</body>
+</html>
