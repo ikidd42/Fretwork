@@ -366,25 +366,51 @@
     .stat .label { font-size: 14px; font-weight: 600; margin: 8px 0 6px; }
     .stat .desc { color: var(--text-2); font-size: 13px; line-height: 1.55; }
 
-    .cases { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
-    .case {
+    /* Signal chains: the two analysis paths, stage by stage. */
+    .chains { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+    .chain {
       padding: 24px;
       border-radius: var(--radius);
       border: 1px solid var(--hairline);
       background: linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.045));
     }
-    .case blockquote {
-      font-family: var(--mono);
-      font-size: 14px;
-      color: var(--near);
-      border-left: 2px solid rgba(255, 217, 89, 0.4);
-      padding-left: 14px;
-      margin-bottom: 14px;
-      line-height: 1.5;
+    .chain-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
     }
-    .case p { color: var(--text-2); font-size: 13.5px; line-height: 1.65; }
-    .case p b { color: var(--cream); font-weight: 600; }
-    .case .fix { margin-top: 12px; font-size: 12px; color: var(--in-tune); font-family: var(--mono); }
+    .chain-head .name { font-size: 16px; font-weight: 700; }
+    .chain-head .win { font-family: var(--mono); font-size: 11px; color: var(--text-3); }
+    .stage {
+      position: relative;
+      padding: 0 0 16px 26px;
+    }
+    .stage:last-child { padding-bottom: 0; }
+    /* Node dot + connecting wire down the path. */
+    .stage::before {
+      content: "";
+      position: absolute;
+      left: 3px;
+      top: 5px;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--mint);
+      opacity: 0.85;
+    }
+    .stage::after {
+      content: "";
+      position: absolute;
+      left: 6.5px;
+      top: 17px;
+      bottom: 2px;
+      width: 1px;
+      background: rgba(158, 235, 204, 0.22);
+    }
+    .stage:last-child::after { display: none; }
+    .stage .s-name { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--cream); }
+    .stage .s-desc { color: var(--text-2); font-size: 13px; line-height: 1.6; margin-top: 3px; }
 
     /* ── Screenshots ─────────────────────────────────────────────────── */
     .shots { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
@@ -416,7 +442,7 @@
 
     @media (max-width: 920px) {
       .hero { grid-template-columns: 1fr; gap: 44px; padding: 48px 0 60px; }
-      .rig-duo, .stats, .cases, .shots { grid-template-columns: 1fr; }
+      .rig-duo, .stats, .chains, .shots { grid-template-columns: 1fr; }
       nav .links { display: none; }
       section { padding: 60px 0; }
     }
@@ -559,8 +585,9 @@
       <div class="section-head reveal">
         <div class="micro">Under the hood</div>
         <h2 class="pearl">The DSP is the headline.</h2>
-        <p>No audio frameworks, no packages — a hand-rolled signal chain,
-           proven by synthesized-audio tests.</p>
+        <p>Two hand-rolled analysis chains — monophonic pitch and polyphonic
+           chords — running on every hardware buffer. No audio frameworks,
+           no packages, pinned by synthesized-audio tests.</p>
       </div>
 
       <div class="stats">
@@ -587,21 +614,69 @@
         </div>
       </div>
 
-      <div class="cases">
-        <div class="case reveal">
-          <blockquote>"The tuner doesn't hear my D string."</blockquote>
-          <p>The test suite proved YIN was dead-on at every string — so the
-            fault had to be the <b>amplitude gate</b>, hardcoded at 0.05 and
-            duplicated across four view models, more than double what the
-            chord detector used for the same signal.</p>
-          <div class="fix">→ one source of truth at 0.02; regression test pins it</div>
+      <div class="chains">
+        <div class="chain reveal">
+          <div class="chain-head">
+            <span class="name">Pitch — YIN</span>
+            <span class="win">2048-sample window · runs per 128-frame buffer</span>
+          </div>
+          <div class="stage">
+            <div class="s-name">HAL IOProc capture</div>
+            <div class="s-desc">Every hardware buffer, straight from the input
+              device — 128 frames ≈ 2.7 ms at 48 kHz, no tap batching.</div>
+          </div>
+          <div class="stage">
+            <div class="s-name">Difference function d(τ)</div>
+            <div class="s-desc">Autocorrelation-style lag search over the
+              window, vectorized with vDSP.</div>
+          </div>
+          <div class="stage">
+            <div class="s-name">Cumulative mean normalization</div>
+            <div class="s-desc">The YIN step that suppresses the octave errors
+              plain autocorrelation makes.</div>
+          </div>
+          <div class="stage">
+            <div class="s-name">Threshold + parabolic fit</div>
+            <div class="s-desc">First dip under 0.15 wins; parabolic
+              interpolation refines τ to sub-sample accuracy — frequency
+              within a few cents across the guitar's range.</div>
+          </div>
         </div>
-        <div class="case reveal">
-          <blockquote>"Em keeps flickering to Bsus4."</blockquote>
-          <p>Synthesized strums reproduced it: Em's voicing has two B strings
-            but one G, and B's 3rd harmonic is F♯ — when the G dips below the
-            noise gate, <b>{E, B, F♯} is literally Bsus4</b>.</p>
-          <div class="fix">→ peak interpolation + 3rd-harmonic sieve + sqrt compression</div>
+
+        <div class="chain reveal">
+          <div class="chain-head">
+            <span class="name">Chords — Chromagram</span>
+            <span class="win">4096-sample window · 11.7 Hz bins</span>
+          </div>
+          <div class="stage">
+            <div class="s-name">Hann window + FFT</div>
+            <div class="s-desc">Magnitude spectrum over the guitar's range,
+              ~70 Hz–2 kHz.</div>
+          </div>
+          <div class="stage">
+            <div class="s-name">Peak picking, interpolated</div>
+            <div class="s-desc">Bins are coarser than a semitone below
+              ~330 Hz, so peak frequencies are recovered by parabolic
+              interpolation instead of trusting bin centers.</div>
+          </div>
+          <div class="stage">
+            <div class="s-name">Harmonic sieve</div>
+            <div class="s-desc">Peaks at 3×, 5×, or 7× a real peak are
+              overtones, not played notes — the fifth's 5th harmonic is the
+              root's major 7th — and get crushed before they vote.</div>
+          </div>
+          <div class="stage">
+            <div class="s-name">12-bin chromagram</div>
+            <div class="s-desc">Pitch-class energy, √-compressed so a softly
+              fretted third survives next to doubled open strings; adaptive
+              smoothing, fast on attack, slow in sustain.</div>
+          </div>
+          <div class="stage">
+            <div class="s-name">Template match + hysteresis</div>
+            <div class="s-desc">Cosine similarity against 144 chord
+              templates, with acquire/hold thresholds on both confidence and
+              signal level so the readout locks instead of flickering.</div>
+          </div>
         </div>
       </div>
     </section>
